@@ -1,9 +1,22 @@
-import logo from './logo.svg';
-import './App.css';
+import logo from './logo.svg'
+import './App.css'
+import FlowEditor from './FlowEditor'
+import { ReactFlowProvider } from 'react-flow-renderer'
 
 function App() {
   return (
     <div className="App">
+      <div
+        id="canvas"
+        style={{
+          width: '800px',
+          height: '500px',
+        }}
+      >
+        <ReactFlowProvider>
+          <FlowEditor />
+        </ReactFlowProvider>
+      </div>
       <header className="App-header">
         <img src={logo} className="App-logo" alt="logo" />
         <p>
@@ -19,7 +32,7 @@ function App() {
         </a>
       </header>
     </div>
-  );
+  )
 }
 
-export default App;
+export default App

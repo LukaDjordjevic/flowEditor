@@ -36,3 +36,41 @@
     transform: rotate(360deg);
   }
 }
+
+/* .react-flow__node {
+
+}  */
+
+/* .react-flow {
+  background: red;
+} */
+
+/* .selected {
+  color: blue;
+  box-shadow: 10px 10px 5px grey;
+  background: red;
+} */
+
+/* .react-flow__node-default:hover {
+
+  color: blue;
+  box-shadow: 10px 10px 5px blue;
+  background: rgb(133, 137, 182);
+
+}
+
+.react-flow__node-default.selected {
+
+  color: blue;
+  box-shadow: 10px 10px 5px rgb(70, 70, 85);
+  background: rgb(155, 157, 179);
+
+} */
+
+/* .react-flow__node-default.selected:hover {
+
+    color: blue;
+    box-shadow: 10px 10px 5px grey;
+    background: red;
+
+} */
