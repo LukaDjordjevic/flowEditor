@@ -65,6 +65,9 @@ export default memo(({ data, id }) => {
     >
       {topHandles}
       {bottomHandles}
+      <div>
+        <strong>{data.name}</strong>
+      </div>
       {/* <div>
         Fancy shmancy: <strong>{data.nodeTitle}</strong>
       </div> */}

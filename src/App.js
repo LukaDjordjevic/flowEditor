@@ -9,8 +9,8 @@ function App() {
       <div
         id="canvas"
         style={{
-          width: '800px',
-          height: '500px',
+          width: '100%',
+          height: '900px',
         }}
       >
         <ReactFlowProvider>

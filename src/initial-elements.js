@@ -4,6 +4,7 @@ const initialState = [
     type: 'starting',
     data: {
       handles: { top: [], right: [], bottom: [], left: [] },
+      name: 'Start',
     },
     style: {
       border: '1px solid #777',
@@ -11,6 +12,7 @@ const initialState = [
       borderRadius: '7px',
       background: 'lightgreen',
       width: '100px',
+      textAlign: 'center',
     },
     position: { x: 0, y: 0 },
   },

@@ -2,9 +2,7 @@ import React, { memo } from 'react'
 
 import { Handle } from 'react-flow-renderer'
 
-export default memo(({ data, id }) => {
-  let idCount = 0
-
+export default memo(({ data }) => {
   const handleSize = '0px'
 
   return (
@@ -23,9 +21,9 @@ export default memo(({ data, id }) => {
         }}
         onConnect={(params) => console.log('handle onConnect', params)}
       />
-      {/* <div>
-        Fancy shmancy: <strong>{data.nodeTitle}</strong>
-      </div> */}
+      <div>
+        <strong>{data.name}</strong>
+      </div>
       {/* <input
         className="nodrag"
         // type="text"

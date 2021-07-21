@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react'
+import css from './flowEditor.css'
 
 import ReactFlow, {
   removeElements,
@@ -9,10 +10,13 @@ import ReactFlow, {
   useStoreState,
   useStoreActions,
   getConnectedEdges,
-  // useZoomPanHelper,
+  useZoomPanHelper,
   isNode,
   isEdge,
 } from 'react-flow-renderer'
+
+import NodeProperties from './NodeProperties'
+import EdgeProperties from './EdgeProperties'
 
 import initialElements from './initial-elements'
 import MultiHandleNode from './MultiHandleNode'
@@ -42,6 +46,8 @@ const FlowEditor = () => {
   const [rfInstance, setRfInstance] = useState(null)
   const [isConnecting, setIsConnecting] = useState(false)
   const [connectingNodeIds, setConnectingNodeIds] = useState([])
+  const [selectedElements, setSelectedElements] = useState([])
+  const [propertiesWindowType, setPropertiesWindowType] = useState(null)
 
   const updateNodeDimensions = useStoreActions(
     (actions) => actions.updateNodeDimensions
@@ -53,12 +59,48 @@ const FlowEditor = () => {
     reactFlowInstance.fitView()
   }
 
-  const onElementsRemove = (elementsToRemove) =>
-    setElements((els) => removeElements(elementsToRemove, els))
+  const onElementsRemove = (elementsToRemove) => {
+    console.log(elementsToRemove)
+    const newElements = removeElements(elementsToRemove, elements)
+    console.log('new elements', newElements)
 
-  // const onConnect = (params) => setElements((els) => addEdge(params, els))
+    // let index = null
+    // const sourceElement = newElements.find((elem, i) => {
+    //   index = i
+    //   return elem.id === elementsToRemove[0].source
+    // })
 
-  const onNodeDragStop = (event, node) => console.log('drag stop', node)
+    // sourceElement.data = {
+    //   ...sourceElement.data,
+    //   handles: {
+    //     ...sourceElement.data.handles,
+    //     bottom: [...sourceElement.data.handles.bottom],
+    //   },
+    // }
+
+    // newElements[index] = sourceElement
+    // index = null
+
+    // const targetElement = newElements.find((elem, i) => {
+    //   index = i
+    //   return elem.id === connectingNodeIds[1]
+    // })
+
+    // newElements[index] = targetElement
+
+    // targetElement.data = {
+    //   ...targetElement.data,
+    //   handles: {
+    //     ...targetElement.data.handles,
+    //     top: [...targetElement.data.handles.top, 1],
+    //   },
+    // }
+
+    // const allEdges = elements.filter(isEdge)
+
+    setElements(newElements)
+  }
+
   const onElementClick = (event, element) => {
     console.log('click', element)
     if (isConnecting) {
@@ -123,7 +165,7 @@ const FlowEditor = () => {
           target: connectingNodeIds[1],
           targetHandle: `top_${targetConnectedInputEdges.length}`,
           arrowHeadType: 'arrowclosed',
-          label: `edge ${
+          label: `Trans ${
             getConnectedEdges([sourceElement], allEdges).length + 1
           }`,
         },
@@ -157,56 +199,67 @@ const FlowEditor = () => {
             forceUpdate: true,
           },
         ])
-
-        rfInstance.fitView()
       }, 0)
     }
   }, [connectingNodeIds])
 
-  // const { transform } = useZoomPanHelper()
+  const { transform } = useZoomPanHelper()
 
   const onNewMultiHandleNode = () => {
     const nextId = getNextElementId()
+    const currentId = (parseInt(nextId) - 1).toString()
     console.log('ima elements', elements)
     const sourceElement = elements.find((elem) => {
-      return elem.id === (parseInt(nextId) - 1).toString()
+      return elem.id === currentId
     })
     const allEdges = elements.filter(isEdge)
     console.log('-==========', elements, sourceElement, allEdges)
-    setElements([
-      ...elements,
+
+    const additionalElements = [
       {
         id: nextId,
         type: 'multiHandle',
         data: {
-          handles: { top: [1], right: [], bottom: [0], left: [] },
+          handles: {
+            top: sourceElement.type !== 'terminal' ? [1] : [],
+            right: [],
+            bottom: sourceElement.type !== 'terminal' ? [0] : [],
+            left: [],
+          },
+          name: '',
         },
         style: {
           border: '1px solid #777',
           padding: 10,
           borderRadius: '7px',
-          background: '#fff',
+          background: 'LemonChiffon',
+          textAlign: 'center',
+          fontSize: '12px',
         },
-        position: { x: 0, y: getNewNodeY() + 70 },
+        position: { x: 0, y: getNewNodeY() + 90 },
       },
-      {
+    ]
+
+    if (sourceElement.type !== 'terminal') {
+      additionalElements.push({
         id: Math.random().toString(),
-        source: (parseInt(nextId) - 1).toString(),
+        source: currentId,
         sourceHandle: 'bottom_0',
         target: nextId,
         targetHandle: 'top_0',
         arrowHeadType: 'arrowclosed',
-        label: `edge ${
-          getConnectedEdges([sourceElement], allEdges).length + 1
-        }`,
-      },
-    ])
-    // setConnectingNodeIds([nextId - 1, nextId])
+        label: `Trans ${currentId}`,
+      })
+    }
+
+    setElements([...elements, ...additionalElements])
   }
 
   // Fit view when elements change
   useEffect(() => {
-    if (rfInstance) rfInstance.fitView()
+    setTimeout(() => {
+      if (rfInstance) rfInstance.fitView()
+    }, 0)
   }, [elements])
 
   // Connect nodes button click
@@ -245,47 +298,140 @@ const FlowEditor = () => {
   const onRestore = useCallback(() => {
     const restoreFlow = async () => {
       const flow = JSON.parse(localStorage.getItem(flowKey))
-      // flow.elements.forEach((elem) => {
-      //   if (isNode(elem)) {
-      //     elem.data.onChangeTitleInput = onChangeTitleInput
-      //   }
-      // })
-      console.log('local storage', flow)
       if (flow) {
         const [x = 0, y = 0] = flow.position
         console.log('setting elements to', flow.elements || [])
         setElements(flow.elements || [])
-        // transform({ x, y, zoom: flow.zoom || 0 })
+        transform({ x, y, zoom: flow.zoom || 0 })
       }
     }
     restoreFlow()
   }, [setElements])
 
-  const sillyFn = () => {
-    setElements([
-      ...elements,
+  const onNewTerminalNode = () => {
+    const nextId = getNextElementId()
+    const sourceId = (parseInt(nextId) - 1).toString()
+    console.log('ima elements', elements)
+    const sourceElement = elements.find((elem) => {
+      return elem.id === sourceId
+    })
+    const allEdges = elements.filter(isEdge)
+    const additionalElements = [
       {
+        id: nextId,
+        type: 'terminal',
+        data: {
+          handles: { top: [1], right: [], bottom: [], left: [] },
+        },
+        style: {
+          border: '1px solid #777',
+          padding: 10,
+          borderRadius: '7px',
+          background: 'lightcoral',
+          width: '100px',
+          textAlign: 'center',
+          fontSize: '12px',
+        },
+        position: { x: 0, y: getNewNodeY() + 90 },
+      },
+    ]
+
+    if (sourceElement.type !== 'terminal') {
+      additionalElements.push({
         id: Math.random().toString(),
-        source: '1',
+        source: sourceElement.id,
         sourceHandle: 'bottom_0',
-        target: '2',
+        target: nextId,
         targetHandle: 'top_0',
         arrowHeadType: 'arrowclosed',
-        label: 'edge with arrow head',
-      },
-    ])
+        label: `edge ${
+          getConnectedEdges([sourceElement], allEdges).length + 1
+        }`,
+      })
+    }
+    setElements([...elements, ...additionalElements])
+  }
+
+  const onSelectionChange = (elems) => {
+    setSelectedElements(elems)
+    setPropertiesWindowType(null) // forces unmount of properties component
+  }
+
+  // Update properties window type based on selection
+  useEffect(() => {
+    if (selectedElements && selectedElements.length === 1) {
+      if (isNode(selectedElements[0])) {
+        setPropertiesWindowType('node')
+      } else {
+        setPropertiesWindowType('edge')
+      }
+    } else {
+      setPropertiesWindowType(null)
+    }
+  }, [selectedElements])
+
+  const onChangeElementTitle = (elem, name) => {
+    console.log(elem, name)
+    let index = null
+    const element = elements.find((item, i) => {
+      index = i
+      return item.id === elem.id
+    })
+    const updatedElement = isNode(element)
+      ? { ...element, data: { ...elem.data, name } }
+      : { ...element, label: name }
+
+    console.log('updted element', updatedElement, elements)
+    const newElements = [...elements]
+    newElements[index] = updatedElement
+    setElements(newElements)
   }
 
   return (
-    <>
+    <div style={{ minWidth: '100%', display: 'flex', height: '100%' }}>
+      {/** Toolbox window  */}
+      <div className="flow-editor-toolbox">
+        <div>
+          {selectedElements && propertiesWindowType === 'node' && (
+            <NodeProperties
+              node={selectedElements[0]}
+              onChangeTitle={onChangeElementTitle}
+            />
+          )}
+          {selectedElements && propertiesWindowType === 'edge' && (
+            <EdgeProperties
+              edge={elements.find((el) => el.id === selectedElements[0].id)}
+              onChangeTitle={onChangeElementTitle}
+            />
+          )}
+        </div>
+        <div className="flow-editor-buttons">
+          <button className="flow-editor-button" onClick={onNewMultiHandleNode}>
+            Add node
+          </button>
+          <button className="flow-editor-button" onClick={onNewTerminalNode}>
+            Add terminal node
+          </button>
+          <button className="flow-editor-button" onClick={onConnectNodes}>
+            Connect nodes
+          </button>
+          <div className="flow-editor-vertical-spacer"></div>
+          <button className="flow-editor-button" onClick={onRestore}>
+            Load
+          </button>
+          <button className="flow-editor-button" onClick={onSave}>
+            Save
+          </button>
+        </div>
+      </div>
       <ReactFlow
         elements={elements}
         nodeTypes={nodeTypes}
         onElementsRemove={onElementsRemove}
+        onSelectionChange={onSelectionChange}
         // onConnect={onConnect}
         onLoad={onLoad}
         onElementClick={onElementClick}
-        onNodeDragStop={onNodeDragStop}
         snapToGrid={true}
         snapGrid={[10, 10]}
       >
@@ -304,17 +450,13 @@ const FlowEditor = () => {
             return '#fff'
           }}
           nodeBorderRadius={2}
+          style={{ top: '20px' }}
         />
         <Controls />
         <Background color="#aaa" gap={16} />
         <NodesDebugger />
       </ReactFlow>
-      <button onClick={onNewMultiHandleNode}>New node</button>
-      <button onClick={onConnectNodes}>Connect nodes</button>
-      <button onClick={onRestore}>Load</button>
-      <button onClick={onSave}>Save</button>
-      <button onClick={sillyFn}>Silly</button>
-    </>
+    </div>
   )
 }
 

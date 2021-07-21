@@ -7,48 +7,25 @@ export default memo(({ data, id }) => {
 
   const handleSize = '0px'
 
-  const bottomHandles = data.handles.bottom.map((isTargetHandle, i) => {
-    idCount++
-    return (
-      <Handle
-        id={`bottom_${i}`}
-        key={`bottom_${i}`}
-        type={isTargetHandle ? 'target' : 'source'}
-        position="bottom"
-        style={{
-          background: '#555',
-          left: `${(50 / data.handles.bottom.length) * (1 + 2 * i)}%`,
-          bottom: '-5px',
-          width: handleSize,
-          height: handleSize,
-        }}
-        onConnect={(params) => console.log('handle onConnect', params)}
-      />
-    )
-  })
-
   return (
-    <div
-      style={{
-        borderRadius: '20px',
-        width: '100px',
-        background: 'green',
-      }}
-    >
+    <div>
       <Handle
-        id={`bottom_${i}`}
-        key={`bottom_${i}`}
-        type={isTargetHandle ? 'target' : 'source'}
-        position="bottom"
+        id={`top`}
+        key={`top`}
+        type={'target'}
+        position="top"
         style={{
           background: '#555',
-          left: `${(50 / data.handles.bottom.length) * (1 + 2 * i)}%`,
+          left: `50%`,
           bottom: '-5px',
           width: handleSize,
           height: handleSize,
         }}
         onConnect={(params) => console.log('handle onConnect', params)}
       />
+      <div>
+        <strong>{data.name}</strong>
+      </div>
       {/* <div>
         Fancy shmancy: <strong>{data.nodeTitle}</strong>
       </div> */}
