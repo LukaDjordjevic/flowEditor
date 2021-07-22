@@ -14,7 +14,7 @@ function App() {
         }}
       >
         <ReactFlowProvider>
-          <FlowEditor />
+          <FlowEditor  />
         </ReactFlowProvider>
       </div>
       <header className="App-header">

@@ -3,12 +3,8 @@ import React, { memo } from 'react'
 import { Handle } from 'react-flow-renderer'
 
 export default memo(({ data, id }) => {
-  const onHandleChange = (e) => data.onChangeTitleInput(e, id)
-  let idCount = 0
-
   const handleSize = '0px'
   const topHandles = data.handles.top.map((isTargetHandle, i) => {
-    idCount++
     return (
       <Handle
         id={`top_${i}`}
@@ -28,7 +24,6 @@ export default memo(({ data, id }) => {
   })
 
   const bottomHandles = data.handles.bottom.map((isTargetHandle, i) => {
-    idCount++
     return (
       <Handle
         id={`bottom_${i}`}
@@ -53,10 +48,6 @@ export default memo(({ data, id }) => {
     100
   )
 
-  console.log('nodeWidth', nodeWidth)
-
-  // const nodeWidth = 50
-
   return (
     <div
       style={{
@@ -68,20 +59,6 @@ export default memo(({ data, id }) => {
       <div>
         <strong>{data.name}</strong>
       </div>
-      {/* <div>
-        Fancy shmancy: <strong>{data.nodeTitle}</strong>
-      </div> */}
-      {/* <input
-        className="nodrag"
-        // type="text"
-        onChange={onHandleChange}
-        defaultValue={data.nodeTitle}
-        style={{
-          textAlign: 'center',
-          outline: 'none',
-          borderWidth: 0,
-        }}
-      /> */}
     </div>
   )
 })

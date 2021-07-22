@@ -15,15 +15,28 @@ import ReactFlow, {
   isEdge,
 } from 'react-flow-renderer'
 
+import {
+  getNextLevelOffsets,
+  updateNextLevelNodesPositionOnAdd,
+  getAllChildren,
+  // getLeftOffsets,
+  fixHorizontalPositions,
+} from './util'
+
+import {
+  NODE_HORIZONTAL_SPACING_HALF,
+  NODE_VERTICAL_SPACING,
+  FLOW_STORAGE_KEY,
+} from './constants'
+
 import NodeProperties from './NodeProperties'
 import EdgeProperties from './EdgeProperties'
 
 import initialElements from './initial-elements'
+
 import MultiHandleNode from './MultiHandleNode'
 import StartingNode from './StartingNode'
 import TerminalNode from './TerminalNode'
-
-const flowKey = 'flowEditor'
 
 const nodeTypes = {
   multiHandle: MultiHandleNode,
@@ -32,11 +45,15 @@ const nodeTypes = {
 }
 
 const NodesDebugger = () => {
-  const nodes = useStoreState((state) => state.nodes)
-  const edges = useStoreState((state) => state.edges)
+  // const nodes = useStoreState((state) => state.nodes)
+  // const edges = useStoreState((state) => state.edges)
 
-  console.log('nodes', nodes)
-  console.log('edges', edges)
+  // console.log('nodes', nodes)
+  // console.log('edges', edges)
+  // console.log('left offsets')
+  // console.log(getLeftOffsets(nodes, 0))
+  // console.log(getLeftOffsets(nodes, 1))
+  // console.log(getLeftOffsets(nodes, 2))
 
   return null
 }
@@ -44,10 +61,11 @@ const NodesDebugger = () => {
 const FlowEditor = () => {
   const [elements, setElements] = useState(initialElements)
   const [rfInstance, setRfInstance] = useState(null)
-  const [isConnecting, setIsConnecting] = useState(false)
-  const [connectingNodeIds, setConnectingNodeIds] = useState([])
   const [selectedElements, setSelectedElements] = useState([])
   const [propertiesWindowType, setPropertiesWindowType] = useState(null)
+  const [isConnecting, setIsConnecting] = useState(false)
+  const [connectingNodeIds, setConnectingNodeIds] = useState([])
+  const [lastNodeClicked, setLastNodeClicked] = useState(null)
 
   const updateNodeDimensions = useStoreActions(
     (actions) => actions.updateNodeDimensions
@@ -60,49 +78,41 @@ const FlowEditor = () => {
   }
 
   const onElementsRemove = (elementsToRemove) => {
-    console.log(elementsToRemove)
+    const removedEdges = elementsToRemove.filter(isEdge)
+    const removedNode = elementsToRemove.find(isNode)
+    const parentNode = removedEdges.find(
+      (edge) => edge.target === removedNode.id
+    ).source
+    const outBoundEdges = removedEdges.filter(
+      (edge) => edge.source === removedNode.id
+    )
     const newElements = removeElements(elementsToRemove, elements)
-    console.log('new elements', newElements)
 
-    // let index = null
-    // const sourceElement = newElements.find((elem, i) => {
-    //   index = i
-    //   return elem.id === elementsToRemove[0].source
-    // })
+    newElements.push(
+      ...outBoundEdges.map((edge) => {
+        return { ...edge, source: parentNode }
+      })
+    )
+    const allChildren = getAllChildren(removedNode, elements)
+    const allChildrenIds = allChildren.map((child) => child.id)
+    newElements.forEach((elem) => {
+      if (allChildrenIds.includes(elem.id)) {
+        const newLevel = elem.data.treePosition.level - 1
+        elem.data.treePosition.level = newLevel
+        elem.position = {
+          ...elem.position,
+          // x: (elementLeftOffset - 1) * NODE_HORIZONTAL_SPACING_HALF,
+          y: newLevel * NODE_VERTICAL_SPACING,
+        }
+      }
+    })
 
-    // sourceElement.data = {
-    //   ...sourceElement.data,
-    //   handles: {
-    //     ...sourceElement.data.handles,
-    //     bottom: [...sourceElement.data.handles.bottom],
-    //   },
-    // }
-
-    // newElements[index] = sourceElement
-    // index = null
-
-    // const targetElement = newElements.find((elem, i) => {
-    //   index = i
-    //   return elem.id === connectingNodeIds[1]
-    // })
-
-    // newElements[index] = targetElement
-
-    // targetElement.data = {
-    //   ...targetElement.data,
-    //   handles: {
-    //     ...targetElement.data.handles,
-    //     top: [...targetElement.data.handles.top, 1],
-    //   },
-    // }
-
-    // const allEdges = elements.filter(isEdge)
-
-    setElements(newElements)
+    setElements(fixHorizontalPositions(newElements))
   }
 
   const onElementClick = (event, element) => {
     console.log('click', element)
+    setLastNodeClicked(element)
     if (isConnecting) {
       setConnectingNodeIds([...connectingNodeIds, element.id])
     }
@@ -175,7 +185,6 @@ const FlowEditor = () => {
 
       // Force rerender of connected nodes
       setTimeout(() => {
-        console.log('updating dimensions', sourceElement, targetElement)
         const sourceDomElement = document.querySelector(
           `.react-flow__node[data-id="${sourceElement.id}"]`
         )
@@ -208,12 +217,10 @@ const FlowEditor = () => {
   const onNewMultiHandleNode = () => {
     const nextId = getNextElementId()
     const currentId = (parseInt(nextId) - 1).toString()
-    console.log('ima elements', elements)
     const sourceElement = elements.find((elem) => {
       return elem.id === currentId
     })
     const allEdges = elements.filter(isEdge)
-    console.log('-==========', elements, sourceElement, allEdges)
 
     const additionalElements = [
       {
@@ -291,16 +298,15 @@ const FlowEditor = () => {
   const onSave = useCallback(() => {
     if (rfInstance) {
       const flow = rfInstance.toObject()
-      localStorage.setItem(flowKey, JSON.stringify(flow))
+      localStorage.setItem(FLOW_STORAGE_KEY, JSON.stringify(flow))
     }
   }, [rfInstance])
 
   const onRestore = useCallback(() => {
     const restoreFlow = async () => {
-      const flow = JSON.parse(localStorage.getItem(flowKey))
+      const flow = JSON.parse(localStorage.getItem(FLOW_STORAGE_KEY))
       if (flow) {
         const [x = 0, y = 0] = flow.position
-        console.log('setting elements to', flow.elements || [])
         setElements(flow.elements || [])
         transform({ x, y, zoom: flow.zoom || 0 })
       }
@@ -311,7 +317,6 @@ const FlowEditor = () => {
   const onNewTerminalNode = () => {
     const nextId = getNextElementId()
     const sourceId = (parseInt(nextId) - 1).toString()
-    console.log('ima elements', elements)
     const sourceElement = elements.find((elem) => {
       return elem.id === sourceId
     })
@@ -371,7 +376,6 @@ const FlowEditor = () => {
   }, [selectedElements])
 
   const onChangeElementTitle = (elem, name) => {
-    console.log(elem, name)
     let index = null
     const element = elements.find((item, i) => {
       index = i
@@ -381,12 +385,67 @@ const FlowEditor = () => {
       ? { ...element, data: { ...elem.data, name } }
       : { ...element, label: name }
 
-    console.log('updted element', updatedElement, elements)
     const newElements = [...elements]
     newElements[index] = updatedElement
     setElements(newElements)
   }
 
+  const onNodeDoubleClick = (e) => {
+    const nextId = getNextElementId()
+    const nextLevel = lastNodeClicked.data.treePosition.level + 1
+    const sourceNodeLeftOffset = lastNodeClicked.data.treePosition.leftOffset
+    const nextLevelOffsets = getNextLevelOffsets(elements, nextLevel)
+    const isEvenNumberOfNextLevelNodes = nextLevelOffsets.length % 2 === 0
+    const leftOffset = isEvenNumberOfNextLevelNodes
+      ? sourceNodeLeftOffset
+      : sourceNodeLeftOffset + 1
+
+    // Update positions of nodes from next level
+    const newElements = updateNextLevelNodesPositionOnAdd({
+      elements,
+      sourceNodeLeftOffset,
+      nextLevel,
+    })
+
+    newElements.push(
+      {
+        id: nextId,
+        type: 'multiHandle',
+        data: {
+          handles: {
+            top: [1],
+            right: [],
+            bottom: [0],
+            left: [],
+          },
+          name: '',
+          treePosition: { level: nextLevel, leftOffset },
+        },
+        style: {
+          border: '1px solid #777',
+          padding: 10,
+          borderRadius: '7px',
+          background: 'LemonChiffon',
+          textAlign: 'center',
+          fontSize: '12px',
+        },
+        position: {
+          x: leftOffset * NODE_HORIZONTAL_SPACING_HALF,
+          y: nextLevel * NODE_VERTICAL_SPACING,
+        },
+      },
+      {
+        id: (parseInt(nextId) + 1).toString(),
+        source: lastNodeClicked.id,
+        sourceHandle: 'bottom_0',
+        target: nextId,
+        targetHandle: 'top_0',
+        arrowHeadType: 'arrowclosed',
+        label: `Trans ${(parseInt(nextId) + 1).toString()}`,
+      }
+    )
+    setElements(newElements)
+  }
   return (
     <div style={{ minWidth: '100%', display: 'flex', height: '100%' }}>
       {/** Toolbox window  */}
@@ -434,6 +493,7 @@ const FlowEditor = () => {
         onElementClick={onElementClick}
         snapToGrid={true}
         snapGrid={[10, 10]}
+        onNodeDoubleClick={onNodeDoubleClick}
       >
         <MiniMap
           nodeStrokeColor={(n) => {

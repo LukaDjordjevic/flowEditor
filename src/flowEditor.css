@@ -19,12 +19,15 @@
   padding: 5px;
   font-size: 14px;
   font-weight: bold;
-  background-color: rgba(0, 0, 0, 0);
+  background-color: #b6a0ba;
+  color: #fff;
+  cursor: pointer;
+  outline: none;
 }
 
 .flow-editor-toolbox {
   padding: 5px;
-  background: #b6a0ba;
+  background: #a282a7;
   width: 250px;
   display: flex;
   justify-content: space-between;
@@ -59,5 +62,4 @@
 .flow-editor-buttons {
   display: flex;
   flex-direction: column;
-  cursor: pointer;
 }

@@ -3,15 +3,16 @@ const initialState = [
     id: '1',
     type: 'starting',
     data: {
-      handles: { top: [], right: [], bottom: [], left: [] },
+      handles: { top: [], right: [], bottom: [0], left: [] },
       name: 'Start',
+      treePosition: { level: 0, leftOffset: 0 },
     },
     style: {
       border: '1px solid #777',
       padding: 10,
       borderRadius: '7px',
       background: 'lightgreen',
-      width: '100px',
+
       textAlign: 'center',
     },
     position: { x: 0, y: 0 },
