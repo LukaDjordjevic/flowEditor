@@ -13,11 +13,12 @@ import ReactFlow, {
   useZoomPanHelper,
   isNode,
   isEdge,
+  getOutgoers,
 } from 'react-flow-renderer'
 
 import {
-  getNextLevelOffsets,
-  updateNextLevelNodesPositionOnAdd,
+  // getNextLevelOffsets,
+  // updateNextLevelNodesPositionOnAdd,
   getAllChildren,
   // getLeftOffsets,
   fixHorizontalPositions,
@@ -45,11 +46,11 @@ const nodeTypes = {
 }
 
 const NodesDebugger = () => {
-  // const nodes = useStoreState((state) => state.nodes)
-  // const edges = useStoreState((state) => state.edges)
+  const nodes = useStoreState((state) => state.nodes)
+  const edges = useStoreState((state) => state.edges)
 
   // console.log('nodes', nodes)
-  // console.log('edges', edges)
+  console.log('edges', edges)
   // console.log('left offsets')
   // console.log(getLeftOffsets(nodes, 0))
   // console.log(getLeftOffsets(nodes, 1))
@@ -393,20 +394,8 @@ const FlowEditor = () => {
   const onNodeDoubleClick = (e) => {
     const nextId = getNextElementId()
     const nextLevel = lastNodeClicked.data.treePosition.level + 1
-    const sourceNodeLeftOffset = lastNodeClicked.data.treePosition.leftOffset
-    const nextLevelOffsets = getNextLevelOffsets(elements, nextLevel)
-    const isEvenNumberOfNextLevelNodes = nextLevelOffsets.length % 2 === 0
-    const leftOffset = isEvenNumberOfNextLevelNodes
-      ? sourceNodeLeftOffset
-      : sourceNodeLeftOffset + 1
 
-    // Update positions of nodes from next level
-    const newElements = updateNextLevelNodesPositionOnAdd({
-      elements,
-      sourceNodeLeftOffset,
-      nextLevel,
-    })
-
+    const newElements = [...elements]
     newElements.push(
       {
         id: nextId,
@@ -419,7 +408,7 @@ const FlowEditor = () => {
             left: [],
           },
           name: '',
-          treePosition: { level: nextLevel, leftOffset },
+          treePosition: { level: nextLevel },
         },
         style: {
           border: '1px solid #777',
@@ -430,7 +419,7 @@ const FlowEditor = () => {
           fontSize: '12px',
         },
         position: {
-          x: leftOffset * NODE_HORIZONTAL_SPACING_HALF,
+          x: NODE_HORIZONTAL_SPACING_HALF,
           y: nextLevel * NODE_VERTICAL_SPACING,
         },
       },
@@ -444,6 +433,115 @@ const FlowEditor = () => {
         label: `Trans ${(parseInt(nextId) + 1).toString()}`,
       }
     )
+    setElements(fixHorizontalPositions(newElements))
+  }
+
+  const onInsertBelow = (e) => {
+    // const outgoers = getOutgoers(lastNodeClicked, elements)
+    const connectedEdges = getConnectedEdges(
+      [lastNodeClicked],
+      elements.filter(isEdge)
+    )
+
+    const connectedIncomingEdges = connectedEdges.filter(
+      (edge) => edge.target === lastNodeClicked.id
+    )
+    const connectedOutgoingEdges = connectedEdges.filter(
+      (edge) => edge.source === lastNodeClicked.id
+    )
+
+    const nextId = getNextElementId()
+    const level = lastNodeClicked.data.treePosition.level
+
+    console.log(
+      'insert below',
+      lastNodeClicked,
+      connectedIncomingEdges,
+      connectedOutgoingEdges
+    )
+
+    // Increase level by 1 for all children
+    const allChildren = getAllChildren(lastNodeClicked, elements)
+
+    const allChildrenUpdated = allChildren.map((child) => {
+      return {
+        ...child,
+        position: {
+          ...child.position,
+          y: child.position.y + NODE_VERTICAL_SPACING,
+        },
+        data: {
+          ...child.data,
+          treePosition: {
+            level: child.data.treePosition.level + 1,
+          },
+        },
+      }
+    })
+
+    const newNode = {
+      id: nextId,
+      type: 'multiHandle',
+      data: {
+        handles: {
+          top: [1],
+          right: [],
+          bottom: [0],
+          left: [],
+        },
+        name: '',
+        treePosition: { level: level + 1 },
+      },
+      style: {
+        border: '1px solid #777',
+        padding: 10,
+        borderRadius: '7px',
+        background: 'LemonChiffon',
+        textAlign: 'center',
+        fontSize: '12px',
+      },
+      position: {
+        x: lastNodeClicked.position.x,
+        y: (level + 1) * NODE_VERTICAL_SPACING,
+      },
+    }
+
+    const newEdge = {
+      id: (parseInt(nextId) + 1).toString(),
+      source: lastNodeClicked.id,
+      sourceHandle: 'bottom_0',
+      target: nextId,
+      targetHandle: 'top_0',
+      arrowHeadType: 'arrowclosed',
+      label: `Trans ${(parseInt(nextId) + 1).toString()}`,
+    }
+
+    // const updatedIncomingEdges = connectedIncomingEdges.map((edge) => ({
+    //   ...edge,
+    //   target: nextId,
+    // }))
+    const updatedOutgoingEges = connectedOutgoingEdges.map((edge) => ({
+      ...edge,
+      source: nextId,
+    }))
+    // const updatedEdges = [...updatedIncomingEdges, ...updatedOutgoingEges]
+    const newElements = [...elements, newNode, newEdge]
+    newElements.forEach((el, index, array) => {
+      const updatedElement = allChildrenUpdated.find(
+        (elem) => el.id === elem.id
+      )
+      if (updatedElement) {
+        array[index] = updatedElement
+      }
+    })
+    newElements.forEach((el, index, array) => {
+      const updatedElement = updatedOutgoingEges.find(
+        (elem) => el.id === elem.id
+      )
+      if (updatedElement) {
+        array[index] = updatedElement
+      }
+    })
     setElements(fixHorizontalPositions(newElements))
   }
   return (
@@ -465,6 +563,9 @@ const FlowEditor = () => {
           )}
         </div>
         <div className="flow-editor-buttons">
+          <button className="flow-editor-button" onClick={onInsertBelow}>
+            Insert below
+          </button>
           <button className="flow-editor-button" onClick={onNewMultiHandleNode}>
             Add node
           </button>

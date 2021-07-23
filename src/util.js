@@ -5,45 +5,45 @@ import {
   NODE_VERTICAL_SPACING,
 } from './constants'
 
-export const getNextLevelOffsets = (elements, nextLevel) => {
-  return elements
-    .filter(isNode)
-    .filter((element) => element.data.treePosition.level === nextLevel)
-    .map((elem) => elem.data.treePosition.leftOffset)
-}
+// export const getNextLevelOffsets = (elements, nextLevel) => {
+//   return elements
+//     .filter(isNode)
+//     .filter((element) => element.data.treePosition.level === nextLevel)
+//     .map((elem) => elem.data.treePosition.leftOffset)
+// }
 
-export const updateNextLevelNodesPositionOnAdd = ({
-  elements,
-  sourceNodeLeftOffset,
-  nextLevel,
-}) => {
-  const newElements = [...elements]
-  newElements.forEach((element) => {
-    if (isNode(element)) {
-      const {
-        data: {
-          treePosition: { level: elementLevel, leftOffset: elementLeftOffset },
-        },
-      } = element
-      if (elementLevel === nextLevel) {
-        if (elementLeftOffset <= sourceNodeLeftOffset) {
-          element.data.treePosition.leftOffset = elementLeftOffset - 1
-          element.position = {
-            x: (elementLeftOffset - 1) * NODE_HORIZONTAL_SPACING_HALF,
-            y: elementLevel * NODE_VERTICAL_SPACING,
-          }
-        } else {
-          element.data.treePosition.leftOffset = elementLeftOffset + 1
-          element.position = {
-            x: (elementLeftOffset + 1) * NODE_HORIZONTAL_SPACING_HALF,
-            y: elementLevel * NODE_VERTICAL_SPACING,
-          }
-        }
-      }
-    }
-  })
-  return newElements
-}
+// export const updateNextLevelNodesPositionOnAdd = ({
+//   elements,
+//   sourceNodeLeftOffset,
+//   nextLevel,
+// }) => {
+//   const newElements = [...elements]
+//   newElements.forEach((element) => {
+//     if (isNode(element)) {
+//       const {
+//         data: {
+//           treePosition: { level: elementLevel, leftOffset: elementLeftOffset },
+//         },
+//       } = element
+//       if (elementLevel === nextLevel) {
+//         if (elementLeftOffset <= sourceNodeLeftOffset) {
+//           element.data.treePosition.leftOffset = elementLeftOffset - 1
+//           element.position = {
+//             x: (elementLeftOffset - 1) * NODE_HORIZONTAL_SPACING_HALF,
+//             y: elementLevel * NODE_VERTICAL_SPACING,
+//           }
+//         } else {
+//           element.data.treePosition.leftOffset = elementLeftOffset + 1
+//           element.position = {
+//             x: (elementLeftOffset + 1) * NODE_HORIZONTAL_SPACING_HALF,
+//             y: elementLevel * NODE_VERTICAL_SPACING,
+//           }
+//         }
+//       }
+//     }
+//   })
+//   return newElements
+// }
 
 // TODO: write better function
 export const getAllChildren = (node, elements, allChildren = []) => {
@@ -90,7 +90,7 @@ const fixLevelPositions = (
   )
   console.log('sorted parents', sortedPreviousLevel)
 
-  const fixedLevel = sortedPreviousLevel.reduce((acc, parent, index, array) => {
+  const fixedLevel = sortedPreviousLevel.reduce((acc, parent) => {
     console.log('acc parent', acc, parent)
     const children = getOutgoers(parent, elements)
     const centeredChildren = children.map((child, childIndex) => {
@@ -124,7 +124,7 @@ const fixLevelPositions = (
     let offsetedChildren = [...centeredChildren]
     if (
       isFinite(overlapDistance) &&
-      overlapDistance >= -NODE_HORIZONTAL_SPACING_HALF * 2
+      overlapDistance > -NODE_HORIZONTAL_SPACING_HALF * 2
     ) {
       console.log('CORRECTION')
       const xOffset = overlapDistance / 2 + NODE_HORIZONTAL_SPACING_HALF
