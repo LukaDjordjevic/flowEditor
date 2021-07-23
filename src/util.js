@@ -59,13 +59,6 @@ export const getAllChildren = (node, elements, allChildren = []) => {
   return [...new Set(allChildren)]
 }
 
-// export const getLeftOffsets = (elements, level) => {
-//   return elements
-//     .filter(isNode)
-//     .filter((el) => el.data.treePosition.level === level)
-//     .map((el) => el.data.treePosition.leftOffset)
-// }
-
 export const getLevelNodes = (elements, level) => {
   return elements
     .filter(isNode)
@@ -89,7 +82,6 @@ export const getTreeByLevels = (elements) => {
 }
 
 const fixLevelPositions = (
-  level,
   previousLevel = { position: { x: 0, y: 0 } },
   elements
 ) => {
@@ -98,16 +90,10 @@ const fixLevelPositions = (
   )
   console.log('sorted parents', sortedPreviousLevel)
 
-  const fixedLevel = sortedPreviousLevel.reduce((acc, parent) => {
+  const fixedLevel = sortedPreviousLevel.reduce((acc, parent, index, array) => {
     console.log('acc parent', acc, parent)
     const children = getOutgoers(parent, elements)
     const centeredChildren = children.map((child, childIndex) => {
-      // if (children.length % 2 === 0) {
-      //   return {
-      //     ...child,
-      //     position: { ...child.position, x: parent.position.x },
-      //   }
-      // }
       return {
         ...child,
         position: {
@@ -120,7 +106,48 @@ const fixLevelPositions = (
         },
       }
     })
-    return [...acc, ...centeredChildren]
+    const rightmostElementInAcc = acc[acc.length - 1]
+      ? acc[acc.length - 1].position.x
+      : Number.NEGATIVE_INFINITY
+    const leftMostCenteredChildrenPos = centeredChildren[0]
+      ? centeredChildren[0].position.x
+      : Number.NEGATIVE_INFINITY
+    const overlapDistance = rightmostElementInAcc - leftMostCenteredChildrenPos
+
+    console.log(
+      '******** dist between nodes',
+      overlapDistance,
+      rightmostElementInAcc,
+      leftMostCenteredChildrenPos
+    )
+    let newAcc = [...acc]
+    let offsetedChildren = [...centeredChildren]
+    if (
+      isFinite(overlapDistance) &&
+      overlapDistance >= -NODE_HORIZONTAL_SPACING_HALF * 2
+    ) {
+      console.log('CORRECTION')
+      const xOffset = overlapDistance / 2 + NODE_HORIZONTAL_SPACING_HALF
+      newAcc = acc.map((elem) => {
+        return {
+          ...elem,
+          position: {
+            ...elem.position,
+            x: elem.position.x - xOffset,
+          },
+        }
+      })
+      offsetedChildren = centeredChildren.map((elem) => {
+        return {
+          ...elem,
+          position: {
+            ...elem.position,
+            x: elem.position.x + xOffset,
+          },
+        }
+      })
+    }
+    return [...newAcc, ...offsetedChildren]
   }, [])
 
   return fixedLevel
@@ -130,7 +157,7 @@ export const fixHorizontalPositions = (elements) => {
   const treeByLevels = getTreeByLevels(elements)
   treeByLevels.forEach((level, index, array) => {
     if (index === 0) return level
-    array[index] = fixLevelPositions(level, array[index - 1], elements)
+    array[index] = fixLevelPositions(array[index - 1], elements)
   })
   console.log('fixed tree by levels', treeByLevels)
   const newElements = [...elements]

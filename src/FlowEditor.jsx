@@ -444,7 +444,7 @@ const FlowEditor = () => {
         label: `Trans ${(parseInt(nextId) + 1).toString()}`,
       }
     )
-    setElements(newElements)
+    setElements(fixHorizontalPositions(newElements))
   }
   return (
     <div style={{ minWidth: '100%', display: 'flex', height: '100%' }}>
@@ -486,6 +486,7 @@ const FlowEditor = () => {
       <ReactFlow
         elements={elements}
         nodeTypes={nodeTypes}
+        nodesDraggable={false}
         onElementsRemove={onElementsRemove}
         onSelectionChange={onSelectionChange}
         // onConnect={onConnect}
