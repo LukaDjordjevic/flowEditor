@@ -16,13 +16,7 @@ import ReactFlow, {
   getOutgoers,
 } from 'react-flow-renderer'
 
-import {
-  // getNextLevelOffsets,
-  // updateNextLevelNodesPositionOnAdd,
-  getAllChildren,
-  // getLeftOffsets,
-  fixHorizontalPositions,
-} from './util'
+import { getAllChildren, fixHorizontalPositions } from './util'
 
 import {
   NODE_HORIZONTAL_SPACING_HALF,
@@ -49,7 +43,7 @@ const NodesDebugger = () => {
   const nodes = useStoreState((state) => state.nodes)
   const edges = useStoreState((state) => state.edges)
 
-  // console.log('nodes', nodes)
+  console.log('nodes', nodes)
   console.log('edges', edges)
   // console.log('left offsets')
   // console.log(getLeftOffsets(nodes, 0))
@@ -71,6 +65,15 @@ const FlowEditor = () => {
   const updateNodeDimensions = useStoreActions(
     (actions) => actions.updateNodeDimensions
   )
+
+  const nodeStyle = {
+    border: '1px solid #777',
+    padding: 10,
+    borderRadius: '7px',
+    background: 'LemonChiffon',
+    textAlign: 'center',
+    fontSize: '12px',
+  }
 
   const onLoad = (reactFlowInstance) => {
     console.log('flow loaded:', reactFlowInstance)
@@ -236,14 +239,7 @@ const FlowEditor = () => {
           },
           name: '',
         },
-        style: {
-          border: '1px solid #777',
-          padding: 10,
-          borderRadius: '7px',
-          background: 'LemonChiffon',
-          textAlign: 'center',
-          fontSize: '12px',
-        },
+        style: nodeStyle,
         position: { x: 0, y: getNewNodeY() + 90 },
       },
     ]
@@ -410,14 +406,7 @@ const FlowEditor = () => {
           name: '',
           treePosition: { level: nextLevel },
         },
-        style: {
-          border: '1px solid #777',
-          padding: 10,
-          borderRadius: '7px',
-          background: 'LemonChiffon',
-          textAlign: 'center',
-          fontSize: '12px',
-        },
+        style: nodeStyle,
         position: {
           x: NODE_HORIZONTAL_SPACING_HALF,
           y: nextLevel * NODE_VERTICAL_SPACING,
@@ -436,32 +425,52 @@ const FlowEditor = () => {
     setElements(fixHorizontalPositions(newElements))
   }
 
-  const onInsertBelow = (e) => {
-    // const outgoers = getOutgoers(lastNodeClicked, elements)
+  const onInsertBelow = () => {
     const connectedEdges = getConnectedEdges(
       [lastNodeClicked],
       elements.filter(isEdge)
     )
 
-    const connectedIncomingEdges = connectedEdges.filter(
-      (edge) => edge.target === lastNodeClicked.id
-    )
     const connectedOutgoingEdges = connectedEdges.filter(
       (edge) => edge.source === lastNodeClicked.id
     )
 
+    const currentNode = elements.find((el) => el.id === lastNodeClicked.id)
     const nextId = getNextElementId()
-    const level = lastNodeClicked.data.treePosition.level
+    const level = currentNode.data.treePosition.level
 
-    console.log(
-      'insert below',
-      lastNodeClicked,
-      connectedIncomingEdges,
-      connectedOutgoingEdges
-    )
+    const newNode = {
+      id: nextId,
+      type: 'multiHandle',
+      data: {
+        handles: {
+          top: [1],
+          right: [],
+          bottom: [0],
+          left: [],
+        },
+        name: '',
+        treePosition: { level: level + 1 },
+      },
+      style: nodeStyle,
+      position: {
+        x: currentNode.position.x,
+        y: (level + 1) * NODE_VERTICAL_SPACING,
+      },
+    }
+
+    const newEdge = {
+      id: (parseInt(nextId) + 1).toString(),
+      source: currentNode.id,
+      sourceHandle: 'bottom_0',
+      target: nextId,
+      targetHandle: 'top_0',
+      arrowHeadType: 'arrowclosed',
+      label: `Trans ${(parseInt(nextId) + 1).toString()}`,
+    }
 
     // Increase level by 1 for all children
-    const allChildren = getAllChildren(lastNodeClicked, elements)
+    const allChildren = getAllChildren(currentNode, elements)
 
     const allChildrenUpdated = allChildren.map((child) => {
       return {
@@ -479,6 +488,38 @@ const FlowEditor = () => {
       }
     })
 
+    const updatedOutgoingEges = connectedOutgoingEdges.map((edge) => ({
+      ...edge,
+      source: nextId,
+    }))
+    const newElements = [...elements, newNode, newEdge]
+
+    newElements.forEach((el, index, array) => {
+      const updatedElement =
+        allChildrenUpdated.find((elem) => el.id === elem.id) ||
+        updatedOutgoingEges.find((elem) => el.id === elem.id)
+      if (updatedElement) {
+        array[index] = updatedElement
+      }
+    })
+
+    setElements(fixHorizontalPositions(newElements))
+  }
+
+  const onInsertAbove = () => {
+    const currentNode = elements.find((el) => el.id === lastNodeClicked.id)
+    const connectedEdges = getConnectedEdges(
+      [currentNode],
+      elements.filter(isEdge)
+    )
+
+    const connectedIncomingEdges = connectedEdges.filter(
+      (edge) => edge.target === currentNode.id
+    )
+
+    const nextId = getNextElementId()
+    const level = currentNode.data.treePosition.level
+
     const newNode = {
       id: nextId,
       type: 'multiHandle',
@@ -490,58 +531,60 @@ const FlowEditor = () => {
           left: [],
         },
         name: '',
-        treePosition: { level: level + 1 },
+        treePosition: { level: level },
       },
-      style: {
-        border: '1px solid #777',
-        padding: 10,
-        borderRadius: '7px',
-        background: 'LemonChiffon',
-        textAlign: 'center',
-        fontSize: '12px',
-      },
+      style: nodeStyle,
       position: {
-        x: lastNodeClicked.position.x,
-        y: (level + 1) * NODE_VERTICAL_SPACING,
+        x: currentNode.position.x,
+        y: level * NODE_VERTICAL_SPACING,
       },
     }
 
     const newEdge = {
       id: (parseInt(nextId) + 1).toString(),
-      source: lastNodeClicked.id,
+      source: nextId,
       sourceHandle: 'bottom_0',
-      target: nextId,
+      target: currentNode.id,
       targetHandle: 'top_0',
       arrowHeadType: 'arrowclosed',
-      label: `Trans ${(parseInt(nextId) + 1).toString()}`,
+      label: `Trans ${nextId}`,
     }
 
-    // const updatedIncomingEdges = connectedIncomingEdges.map((edge) => ({
-    //   ...edge,
-    //   target: nextId,
-    // }))
-    const updatedOutgoingEges = connectedOutgoingEdges.map((edge) => ({
+    // Increase level by 1 for all children
+    const allChildren = getAllChildren(currentNode, elements)
+
+    const updatedNodes = [...allChildren, currentNode].map((child) => {
+      return {
+        ...child,
+        position: {
+          ...child.position,
+          y: child.position.y + NODE_VERTICAL_SPACING,
+        },
+        data: {
+          ...child.data,
+          treePosition: {
+            level: child.data.treePosition.level + 1,
+          },
+        },
+      }
+    })
+
+    const updatedIncomingEdges = connectedIncomingEdges.map((edge) => ({
       ...edge,
-      source: nextId,
+      target: nextId,
     }))
-    // const updatedEdges = [...updatedIncomingEdges, ...updatedOutgoingEges]
+
     const newElements = [...elements, newNode, newEdge]
+
     newElements.forEach((el, index, array) => {
-      const updatedElement = allChildrenUpdated.find(
-        (elem) => el.id === elem.id
-      )
+      const updatedElement =
+        updatedNodes.find((elem) => el.id === elem.id) ||
+        updatedIncomingEdges.find((elem) => el.id === elem.id)
       if (updatedElement) {
         array[index] = updatedElement
       }
     })
-    newElements.forEach((el, index, array) => {
-      const updatedElement = updatedOutgoingEges.find(
-        (elem) => el.id === elem.id
-      )
-      if (updatedElement) {
-        array[index] = updatedElement
-      }
-    })
+
     setElements(fixHorizontalPositions(newElements))
   }
   return (
@@ -563,6 +606,9 @@ const FlowEditor = () => {
           )}
         </div>
         <div className="flow-editor-buttons">
+          <button className="flow-editor-button" onClick={onInsertAbove}>
+            Insert above
+          </button>
           <button className="flow-editor-button" onClick={onInsertBelow}>
             Insert below
           </button>
