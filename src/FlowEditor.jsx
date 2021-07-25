@@ -398,9 +398,9 @@ const FlowEditor = () => {
     setElements(newElements)
   }
 
-  const onBranchNode = (node) => {
+  const onBranchNode = (nodeId) => {
     const rfElements = rfInstance.toObject().elements
-    const currentNode = rfElements.find((el) => el.id === node)
+    const currentNode = rfElements.find((el) => el.id === nodeId)
     const nextId = getNextElementId()
     const nextLevel = currentNode.data.level + 1
     console.log('=================on branch node', nextId, nextLevel, elements)
@@ -420,7 +420,7 @@ const FlowEditor = () => {
           onInsertAbove,
           onInsertBelow,
           onBranchNode,
-          name: 'ccc',
+          name: '',
           level: nextLevel,
           isSelected: false,
         },
@@ -432,7 +432,7 @@ const FlowEditor = () => {
       },
       {
         id: (parseInt(nextId) + 1).toString(),
-        source: currentNode.id,
+        source: nodeId,
         sourceHandle: 'bottom_0',
         target: nextId,
         targetHandle: 'top_0',
@@ -444,18 +444,18 @@ const FlowEditor = () => {
     setElements(fixHorizontalPositions(newElements))
   }
 
-  const onInsertBelow = (node) => {
+  const onInsertBelow = (nodeId) => {
     console.log('=================on insert below')
 
     const rfElements = rfInstance.toObject().elements
-    const currentNode = rfElements.find((el) => el.id === node)
+    const currentNode = rfElements.find((el) => el.id === nodeId)
     const connectedEdges = getConnectedEdges(
       [currentNode],
       rfElements.filter(isEdge)
     )
 
     const connectedOutgoingEdges = connectedEdges.filter(
-      (edge) => edge.source === node
+      (edge) => edge.source === nodeId
     )
 
     const nextId = getNextElementId()
@@ -486,7 +486,7 @@ const FlowEditor = () => {
 
     const newEdge = {
       id: (parseInt(nextId) + 1).toString(),
-      source: currentNode.id,
+      source: nodeId,
       sourceHandle: 'bottom_0',
       target: nextId,
       targetHandle: 'top_0',
@@ -530,20 +530,16 @@ const FlowEditor = () => {
     setElements(fixHorizontalPositions(newElements))
   }
 
-  const onInsertAbove = (node) => {
+  const onInsertAbove = (nodeId) => {
     const rfElements = rfInstance.toObject().elements
-    const currentNode = rfElements.find((el) => el.id === node)
+    const currentNode = rfElements.find((el) => el.id === nodeId)
     const connectedEdges = getConnectedEdges(
       [currentNode],
       rfElements.filter(isEdge)
     )
-    console.log('=================on insert above')
-    console.log('current node', currentNode)
-    console.log('connected edges', connectedEdges)
-    console.log('last node clicked', currentNode)
 
     const connectedIncomingEdges = connectedEdges.filter(
-      (edge) => edge.target === currentNode.id
+      (edge) => edge.target === nodeId
     )
 
     const nextId = getNextElementId()
@@ -577,7 +573,7 @@ const FlowEditor = () => {
       id: (parseInt(nextId) + 1).toString(),
       source: nextId,
       sourceHandle: 'bottom_0',
-      target: currentNode.id,
+      target: nodeId,
       targetHandle: 'top_0',
       arrowHeadType: 'arrowclosed',
       label: `Trans ${nextId}`,
@@ -614,6 +610,26 @@ const FlowEditor = () => {
         array[index] = updatedElement
       }
     })
+
+    console.log('pai sad:')
+    let index = null
+    newElements.find((elem, i) => {
+      index = i
+      return elem.id === nodeId
+    })
+    const currentNodeIndex = index
+    newElements.find((elem, i) => {
+      index = i
+      return elem.id === nextId
+    })
+    const newNodeIndex = index
+
+    // Swap current node and new node in elements array so they preserve order in which they are displayed
+    newElements[currentNodeIndex] = newElements.splice(
+      newNodeIndex,
+      1,
+      newElements[currentNodeIndex]
+    )[0]
 
     setElements(fixHorizontalPositions(newElements))
   }
