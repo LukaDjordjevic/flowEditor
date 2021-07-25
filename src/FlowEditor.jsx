@@ -403,7 +403,6 @@ const FlowEditor = () => {
     const currentNode = rfElements.find((el) => el.id === nodeId)
     const nextId = getNextElementId()
     const nextLevel = currentNode.data.level + 1
-    console.log('=================on branch node', nextId, nextLevel, elements)
 
     const newElements = [
       ...rfElements,
@@ -445,8 +444,6 @@ const FlowEditor = () => {
   }
 
   const onInsertBelow = (nodeId) => {
-    console.log('=================on insert below')
-
     const rfElements = rfInstance.toObject().elements
     const currentNode = rfElements.find((el) => el.id === nodeId)
     const connectedEdges = getConnectedEdges(
@@ -496,7 +493,6 @@ const FlowEditor = () => {
 
     // Increase level by 1 for all children
     const allChildren = getAllChildren(currentNode, rfElements)
-    console.log('got Children', allChildren)
 
     const allChildrenUpdated = allChildren.map((child) => {
       return {
@@ -543,7 +539,6 @@ const FlowEditor = () => {
     )
 
     const nextId = getNextElementId()
-    console.log('next id ', nextId)
     const level = currentNode.data.level
 
     const newNode = {
@@ -611,7 +606,6 @@ const FlowEditor = () => {
       }
     })
 
-    console.log('pai sad:')
     let index = null
     newElements.find((elem, i) => {
       index = i
