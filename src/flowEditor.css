@@ -1,3 +1,7 @@
+.flow-editor-flex-column {
+  display: flex;
+  flex-direction: column;
+}
 .react-flow__node-starting.selected {
   box-shadow: 0px 0px 5px rgb(54, 173, 163);
   background: rgb(155, 157, 179);
@@ -62,4 +66,42 @@
 .flow-editor-buttons {
   display: flex;
   flex-direction: column;
+}
+
+.flow-editor-node-icon-up {
+  left: -26px;
+  top: 6px;
+  position: absolute;
+  cursor: pointer;
+  fill: darkgoldenrod;
+  fill-opacity: 0.3;
+}
+
+.flow-editor-node-icon-down {
+  left: -15px;
+  top: 6px;
+  position: absolute;
+  cursor: pointer;
+  fill: darkgoldenrod;
+  fill-opacity: 0.3;
+}
+.flow-editor-node-icon-split {
+  left: 125px;
+  top: 3px;
+  position: absolute;
+  cursor: pointer;
+  fill: darkgoldenrod;
+  fill-opacity: 0.3;
+}
+
+.flow-editor-node-icon-up:hover {
+  fill-opacity: 1;
+}
+
+.flow-editor-node-icon-down:hover {
+  fill-opacity: 1;
+}
+
+.flow-editor-node-icon-split:hover {
+  fill-opacity: 1;
 }

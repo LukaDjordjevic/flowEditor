@@ -2,6 +2,10 @@ import React, { memo } from 'react'
 
 import { Handle } from 'react-flow-renderer'
 
+import UpIcon from './icons/UpIcon'
+import DownIcon from './icons/DownIcon'
+import SplitIcon from './icons/SplitIcon'
+
 export default memo(({ data, id }) => {
   const handleSize = '0px'
   const topHandles = data.handles.top.map((isTargetHandle, i) => {
@@ -48,6 +52,11 @@ export default memo(({ data, id }) => {
     100
   )
 
+  // const test = () => {
+  //   console.log('TEST!!!')
+  //   data.onInsertAbove()
+  // }
+
   return (
     <div
       style={{
@@ -59,6 +68,19 @@ export default memo(({ data, id }) => {
       <div>
         <strong>{data.name}</strong>
       </div>
+      {data.isSelected ? (
+        <>
+          <div onClick={() => data.onInsertAbove(id)}>
+            <UpIcon />
+          </div>
+          <div onClick={() => data.onInsertBelow(id)}>
+            <DownIcon />
+          </div>
+          <div onClick={() => data.onBranchNode(id)} v>
+            <SplitIcon />
+          </div>
+        </>
+      ) : null}
     </div>
   )
 })

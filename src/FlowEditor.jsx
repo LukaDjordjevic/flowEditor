@@ -1,9 +1,8 @@
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, Children } from 'react'
 import css from './flowEditor.css'
 
 import ReactFlow, {
   removeElements,
-  addEdge,
   MiniMap,
   Controls,
   Background,
@@ -13,7 +12,6 @@ import ReactFlow, {
   useZoomPanHelper,
   isNode,
   isEdge,
-  getOutgoers,
 } from 'react-flow-renderer'
 
 import { getAllChildren, fixHorizontalPositions } from './util'
@@ -101,8 +99,8 @@ const FlowEditor = () => {
     const allChildrenIds = allChildren.map((child) => child.id)
     newElements.forEach((elem) => {
       if (allChildrenIds.includes(elem.id)) {
-        const newLevel = elem.data.treePosition.level - 1
-        elem.data.treePosition.level = newLevel
+        const newLevel = elem.data.level - 1
+        elem.data.level = newLevel
         elem.position = {
           ...elem.position,
           // x: (elementLeftOffset - 1) * NODE_HORIZONTAL_SPACING_HALF,
@@ -260,11 +258,11 @@ const FlowEditor = () => {
   }
 
   // Fit view when elements change
-  useEffect(() => {
-    setTimeout(() => {
-      if (rfInstance) rfInstance.fitView()
-    }, 0)
-  }, [elements])
+  // useEffect(() => {
+  //   setTimeout(() => {
+  //     if (rfInstance) rfInstance.fitView()
+  //   }, 0)
+  // }, [elements])
 
   // Connect nodes button click
   const onConnectNodes = () => {
@@ -273,9 +271,10 @@ const FlowEditor = () => {
   }
 
   const getNextElementId = () => {
+    const rfElements = rfInstance.toObject().elements
     const nextId = (
       (Math.max(
-        ...elements
+        ...rfElements
           .filter(
             (element) =>
               typeof parseInt(element.id) === 'number' &&
@@ -354,9 +353,21 @@ const FlowEditor = () => {
     setElements([...elements, ...additionalElements])
   }
 
-  const onSelectionChange = (elems) => {
-    setSelectedElements(elems)
+  const onSelectionChange = (selectedElementsArg) => {
+    setSelectedElements(selectedElementsArg)
     setPropertiesWindowType(null) // forces unmount of properties component
+    setElements(
+      elements.map((el) => ({
+        ...el,
+        data: {
+          ...el.data,
+          isSelected:
+            selectedElementsArg &&
+            selectedElementsArg.length &&
+            Boolean(selectedElementsArg.find((elem) => el.id === elem.id)),
+        },
+      }))
+    )
   }
 
   // Update properties window type based on selection
@@ -387,12 +398,15 @@ const FlowEditor = () => {
     setElements(newElements)
   }
 
-  const onNodeDoubleClick = (e) => {
+  const onBranchNode = (node) => {
+    const rfElements = rfInstance.toObject().elements
+    const currentNode = rfElements.find((el) => el.id === node)
     const nextId = getNextElementId()
-    const nextLevel = lastNodeClicked.data.treePosition.level + 1
+    const nextLevel = currentNode.data.level + 1
+    console.log('=================on branch node', nextId, nextLevel, elements)
 
-    const newElements = [...elements]
-    newElements.push(
+    const newElements = [
+      ...rfElements,
       {
         id: nextId,
         type: 'multiHandle',
@@ -403,8 +417,12 @@ const FlowEditor = () => {
             bottom: [0],
             left: [],
           },
-          name: '',
-          treePosition: { level: nextLevel },
+          onInsertAbove,
+          onInsertBelow,
+          onBranchNode,
+          name: 'ccc',
+          level: nextLevel,
+          isSelected: false,
         },
         style: nodeStyle,
         position: {
@@ -414,30 +432,34 @@ const FlowEditor = () => {
       },
       {
         id: (parseInt(nextId) + 1).toString(),
-        source: lastNodeClicked.id,
+        source: currentNode.id,
         sourceHandle: 'bottom_0',
         target: nextId,
         targetHandle: 'top_0',
         arrowHeadType: 'arrowclosed',
         label: `Trans ${(parseInt(nextId) + 1).toString()}`,
-      }
-    )
+      },
+    ]
+
     setElements(fixHorizontalPositions(newElements))
   }
 
-  const onInsertBelow = () => {
+  const onInsertBelow = (node) => {
+    console.log('=================on insert below')
+
+    const rfElements = rfInstance.toObject().elements
+    const currentNode = rfElements.find((el) => el.id === node)
     const connectedEdges = getConnectedEdges(
-      [lastNodeClicked],
-      elements.filter(isEdge)
+      [currentNode],
+      rfElements.filter(isEdge)
     )
 
     const connectedOutgoingEdges = connectedEdges.filter(
-      (edge) => edge.source === lastNodeClicked.id
+      (edge) => edge.source === node
     )
 
-    const currentNode = elements.find((el) => el.id === lastNodeClicked.id)
     const nextId = getNextElementId()
-    const level = currentNode.data.treePosition.level
+    const level = currentNode.data.level
 
     const newNode = {
       id: nextId,
@@ -449,8 +471,11 @@ const FlowEditor = () => {
           bottom: [0],
           left: [],
         },
+        onInsertAbove,
+        onInsertBelow,
+        onBranchNode,
         name: '',
-        treePosition: { level: level + 1 },
+        level: level + 1,
       },
       style: nodeStyle,
       position: {
@@ -470,7 +495,8 @@ const FlowEditor = () => {
     }
 
     // Increase level by 1 for all children
-    const allChildren = getAllChildren(currentNode, elements)
+    const allChildren = getAllChildren(currentNode, rfElements)
+    console.log('got Children', allChildren)
 
     const allChildrenUpdated = allChildren.map((child) => {
       return {
@@ -481,9 +507,7 @@ const FlowEditor = () => {
         },
         data: {
           ...child.data,
-          treePosition: {
-            level: child.data.treePosition.level + 1,
-          },
+          level: child.data.level + 1,
         },
       }
     })
@@ -492,7 +516,7 @@ const FlowEditor = () => {
       ...edge,
       source: nextId,
     }))
-    const newElements = [...elements, newNode, newEdge]
+    const newElements = [...rfElements, newNode, newEdge]
 
     newElements.forEach((el, index, array) => {
       const updatedElement =
@@ -506,19 +530,25 @@ const FlowEditor = () => {
     setElements(fixHorizontalPositions(newElements))
   }
 
-  const onInsertAbove = () => {
-    const currentNode = elements.find((el) => el.id === lastNodeClicked.id)
+  const onInsertAbove = (node) => {
+    const rfElements = rfInstance.toObject().elements
+    const currentNode = rfElements.find((el) => el.id === node)
     const connectedEdges = getConnectedEdges(
       [currentNode],
-      elements.filter(isEdge)
+      rfElements.filter(isEdge)
     )
+    console.log('=================on insert above')
+    console.log('current node', currentNode)
+    console.log('connected edges', connectedEdges)
+    console.log('last node clicked', currentNode)
 
     const connectedIncomingEdges = connectedEdges.filter(
       (edge) => edge.target === currentNode.id
     )
 
     const nextId = getNextElementId()
-    const level = currentNode.data.treePosition.level
+    console.log('next id ', nextId)
+    const level = currentNode.data.level
 
     const newNode = {
       id: nextId,
@@ -530,8 +560,11 @@ const FlowEditor = () => {
           bottom: [0],
           left: [],
         },
+        onInsertAbove,
+        onInsertBelow,
+        onBranchNode,
         name: '',
-        treePosition: { level: level },
+        level: level,
       },
       style: nodeStyle,
       position: {
@@ -550,9 +583,8 @@ const FlowEditor = () => {
       label: `Trans ${nextId}`,
     }
 
-    // Increase level by 1 for all children
-    const allChildren = getAllChildren(currentNode, elements)
-
+    // Increase level by 1 for the current node and all its children
+    const allChildren = getAllChildren(currentNode, rfElements)
     const updatedNodes = [...allChildren, currentNode].map((child) => {
       return {
         ...child,
@@ -562,9 +594,7 @@ const FlowEditor = () => {
         },
         data: {
           ...child.data,
-          treePosition: {
-            level: child.data.treePosition.level + 1,
-          },
+          level: child.data.level + 1,
         },
       }
     })
@@ -574,7 +604,7 @@ const FlowEditor = () => {
       target: nextId,
     }))
 
-    const newElements = [...elements, newNode, newEdge]
+    const newElements = [...rfElements, newNode, newEdge]
 
     newElements.forEach((el, index, array) => {
       const updatedElement =
@@ -606,10 +636,16 @@ const FlowEditor = () => {
           )}
         </div>
         <div className="flow-editor-buttons">
-          <button className="flow-editor-button" onClick={onInsertAbove}>
+          <button
+            className="flow-editor-button"
+            onClick={() => onInsertAbove(lastNodeClicked.id)}
+          >
             Insert above
           </button>
-          <button className="flow-editor-button" onClick={onInsertBelow}>
+          <button
+            className="flow-editor-button"
+            onClick={() => onInsertBelow(lastNodeClicked.id)}
+          >
             Insert below
           </button>
           <button className="flow-editor-button" onClick={onNewMultiHandleNode}>
@@ -641,7 +677,7 @@ const FlowEditor = () => {
         onElementClick={onElementClick}
         snapToGrid={true}
         snapGrid={[10, 10]}
-        onNodeDoubleClick={onNodeDoubleClick}
+        onNodeDoubleClick={() => onBranchNode(lastNodeClicked.id)}
       >
         <MiniMap
           nodeStrokeColor={(n) => {

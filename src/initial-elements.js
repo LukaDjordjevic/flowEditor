@@ -5,7 +5,8 @@ const initialState = [
     data: {
       handles: { top: [], right: [], bottom: [0], left: [] },
       name: 'Start',
-      treePosition: { level: 0, leftOffset: 0 },
+      level: 0,
+      isSelected: false,
     },
     style: {
       border: '1px solid #777',
