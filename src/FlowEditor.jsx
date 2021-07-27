@@ -133,6 +133,15 @@ const FlowEditor = () => {
       const parentNode = nodeEdges.find((edge) => edge.target === node.id)
         .source
       const outBoundEdges = nodeEdges.filter((edge) => edge.source === node.id)
+
+      // Get node array index
+      let index = null
+      rfElements.find((elem, i) => {
+        index = i
+        return elem.id === nodeId
+      })
+      const nodeIndex = index
+
       const newElements = removeElements(elementsToRemove, rfElements)
 
       newElements.push(
@@ -153,6 +162,26 @@ const FlowEditor = () => {
           }
         }
       })
+
+      const nodeOutgoers = getOutgoers(node, rfElements)
+
+      // If the deleted node had children, we must move its leftmost child to deleted node's place in the array
+      // in order to preserve the order in which resulting children will render
+      if (nodeOutgoers.length) {
+        // Get leftmost child index
+        let index = null
+        newElements.find((elem, i) => {
+          index = i
+          return elem.id === nodeOutgoers[0].id
+        })
+        const leftMostChildIndex = index
+        // Swap places
+        newElements[nodeIndex] = newElements.splice(
+          leftMostChildIndex,
+          1,
+          newElements[nodeIndex]
+        )[0]
+      }
 
       setElements(fixHorizontalPositions(newElements))
     },
@@ -263,46 +292,46 @@ const FlowEditor = () => {
 
   const { transform } = useZoomPanHelper()
 
-  const onNewMultiHandleNode = () => {
-    const nextId = getNextElementId()
-    const currentId = (parseInt(nextId) - 1).toString()
-    const sourceElement = elements.find((elem) => {
-      return elem.id === currentId
-    })
-    const allEdges = elements.filter(isEdge)
+  // const onNewMultiHandleNode = () => {
+  //   const nextId = getNextElementId()
+  //   const currentId = (parseInt(nextId) - 1).toString()
+  //   const sourceElement = elements.find((elem) => {
+  //     return elem.id === currentId
+  //   })
+  //   const allEdges = elements.filter(isEdge)
 
-    const additionalElements = [
-      {
-        id: nextId,
-        type: 'multiHandle',
-        data: {
-          handles: {
-            top: sourceElement.type !== 'terminal' ? [1] : [],
-            right: [],
-            bottom: sourceElement.type !== 'terminal' ? [0] : [],
-            left: [],
-          },
-          name: '',
-        },
-        style: nodeStyle,
-        position: { x: 0, y: getNewNodeY() + 90 },
-      },
-    ]
+  //   const additionalElements = [
+  //     {
+  //       id: nextId,
+  //       type: 'multiHandle',
+  //       data: {
+  //         handles: {
+  //           top: sourceElement.type !== 'terminal' ? [1] : [],
+  //           right: [],
+  //           bottom: sourceElement.type !== 'terminal' ? [0] : [],
+  //           left: [],
+  //         },
+  //         name: '',
+  //       },
+  //       style: nodeStyle,
+  //       position: { x: 0, y: getNewNodeY() + 90 },
+  //     },
+  //   ]
 
-    if (sourceElement.type !== 'terminal') {
-      additionalElements.push({
-        id: Math.random().toString(),
-        source: currentId,
-        sourceHandle: 'bottom_0',
-        target: nextId,
-        targetHandle: 'top_0',
-        arrowHeadType: 'arrowclosed',
-        label: `Trans ${currentId}`,
-      })
-    }
+  //   if (sourceElement.type !== 'terminal') {
+  //     additionalElements.push({
+  //       id: Math.random().toString(),
+  //       source: currentId,
+  //       sourceHandle: 'bottom_0',
+  //       target: nextId,
+  //       targetHandle: 'top_0',
+  //       arrowHeadType: 'arrowclosed',
+  //       label: `Trans ${currentId}`,
+  //     })
+  //   }
 
-    setElements([...elements, ...additionalElements])
-  }
+  //   setElements([...elements, ...additionalElements])
+  // }
 
   // Fit view when elements change
   // useEffect(() => {
@@ -333,60 +362,53 @@ const FlowEditor = () => {
     return isFinite(nextId) ? nextId : '1'
   }
 
-  const getNewNodeY = () => {
-    const maxY = Math.max(...elements.filter(isNode).map((el) => el.position.y))
-    return isFinite(maxY) ? maxY : 0
-  }
+  // const getNewNodeY = () => {
+  //   const maxY = Math.max(...elements.filter(isNode).map((el) => el.position.y))
+  //   return isFinite(maxY) ? maxY : 0
+  // }
 
-  const onSave = useCallback(() => {
-    if (rfInstance) {
-      const flow = rfInstance.toObject()
-      localStorage.setItem(FLOW_STORAGE_KEY, JSON.stringify(flow))
-    }
-  }, [rfInstance])
+  // const onNewTerminalNode = () => {
+  //   const nextId = getNextElementId()
+  //   const sourceId = (parseInt(nextId) - 1).toString()
+  //   const sourceElement = elements.find((elem) => {
+  //     return elem.id === sourceId
+  //   })
+  //   const allEdges = elements.filter(isEdge)
+  //   const additionalElements = [
+  //     {
+  //       id: nextId,
+  //       type: 'terminal',
+  //       data: {
+  //         handles: { top: [1], right: [], bottom: [], left: [] },
+  //       },
+  //       style: {
+  //         border: '1px solid #777',
+  //         padding: 10,
+  //         borderRadius: '7px',
+  //         background: 'lightcoral',
+  //         width: '100px',
+  //         textAlign: 'center',
+  //         fontSize: '12px',
+  //       },
+  //       position: { x: 0, y: getNewNodeY() + 90 },
+  //     },
+  //   ]
 
-  const onNewTerminalNode = () => {
-    const nextId = getNextElementId()
-    const sourceId = (parseInt(nextId) - 1).toString()
-    const sourceElement = elements.find((elem) => {
-      return elem.id === sourceId
-    })
-    const allEdges = elements.filter(isEdge)
-    const additionalElements = [
-      {
-        id: nextId,
-        type: 'terminal',
-        data: {
-          handles: { top: [1], right: [], bottom: [], left: [] },
-        },
-        style: {
-          border: '1px solid #777',
-          padding: 10,
-          borderRadius: '7px',
-          background: 'lightcoral',
-          width: '100px',
-          textAlign: 'center',
-          fontSize: '12px',
-        },
-        position: { x: 0, y: getNewNodeY() + 90 },
-      },
-    ]
-
-    if (sourceElement.type !== 'terminal') {
-      additionalElements.push({
-        id: Math.random().toString(),
-        source: sourceElement.id,
-        sourceHandle: 'bottom_0',
-        target: nextId,
-        targetHandle: 'top_0',
-        arrowHeadType: 'arrowclosed',
-        label: `edge ${
-          getConnectedEdges([sourceElement], allEdges).length + 1
-        }`,
-      })
-    }
-    setElements([...elements, ...additionalElements])
-  }
+  //   if (sourceElement.type !== 'terminal') {
+  //     additionalElements.push({
+  //       id: Math.random().toString(),
+  //       source: sourceElement.id,
+  //       sourceHandle: 'bottom_0',
+  //       target: nextId,
+  //       targetHandle: 'top_0',
+  //       arrowHeadType: 'arrowclosed',
+  //       label: `edge ${
+  //         getConnectedEdges([sourceElement], allEdges).length + 1
+  //       }`,
+  //     })
+  //   }
+  //   setElements([...elements, ...additionalElements])
+  // }
 
   const onSelectionChange = (selectedElementsArg) => {
     setSelectedElements(selectedElementsArg)
@@ -654,6 +676,46 @@ const FlowEditor = () => {
     },
   })
 
+  // Update keyup listeners
+  useEffect(() => {
+    window.addEventListener('keyup', onKeyUp)
+    return () => {
+      console.log('unmounting')
+      window.removeEventListener('keyup', onKeyUp)
+    }
+  }, [lastNodeClicked])
+
+  const onKeyUp = useCallback(
+    (e) => {
+      console.log(e.keyCode)
+      if (lastNodeClicked) {
+        const { id } = lastNodeClicked
+        switch (e.keyCode) {
+          case 8: // del
+            if (id !== '1') onDelete(id)
+            break
+          case 65: // a
+            if (id !== '1') onInsertAbove(id)
+            break
+          case 66: // b
+            onInsertBelow(id)
+            break
+          case 70: // f
+            onBranchNode(id)
+            break
+        }
+      }
+    },
+    [lastNodeClicked]
+  )
+
+  const onSave = useCallback(() => {
+    if (rfInstance) {
+      const flow = rfInstance.toObject()
+      localStorage.setItem(FLOW_STORAGE_KEY, JSON.stringify(flow))
+    }
+  }, [rfInstance])
+
   const onRestore = useCallback(() => {
     const restoreFlow = async () => {
       const flow = JSON.parse(localStorage.getItem(FLOW_STORAGE_KEY))
@@ -673,6 +735,8 @@ const FlowEditor = () => {
     }
     restoreFlow()
   }, [setElements, rfInstance])
+
+  //  Render
   return (
     <div style={{ minWidth: '100%', display: 'flex', height: '100%' }}>
       {/** Toolbox window  */}
@@ -704,12 +768,12 @@ const FlowEditor = () => {
           >
             Insert below
           </button>
-          <button className="flow-editor-button" onClick={onNewMultiHandleNode}>
+          {/* <button className="flow-editor-button" onClick={onNewMultiHandleNode}>
             Add node
           </button>
           <button className="flow-editor-button" onClick={onNewTerminalNode}>
             Add terminal node
-          </button>
+          </button> */}
           <button className="flow-editor-button" onClick={onConnectNodes}>
             Connect nodes
           </button>
@@ -733,7 +797,7 @@ const FlowEditor = () => {
         onElementClick={onElementClick}
         snapToGrid={true}
         snapGrid={[10, 10]}
-        onNodeDoubleClick={() => onBranchNode(lastNodeClicked.id)}
+        onNodeDoubleClick={() => onInsertBelow(lastNodeClicked.id)}
       >
         <MiniMap
           nodeStrokeColor={(n) => {

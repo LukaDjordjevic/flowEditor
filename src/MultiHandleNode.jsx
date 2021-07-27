@@ -75,9 +75,9 @@ export default memo(({ data, id }) => {
           <div onClick={() => data.onBranchNode(id)} v>
             <SplitIcon />
           </div>
-          <div onClick={() => data.onDelete(id)}>
+          {/* <div onClick={() => data.onDelete(id)}>
             <DeleteIcon />
-          </div>
+          </div> */}
         </>
       ) : null}
     </div>
