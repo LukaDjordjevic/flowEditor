@@ -12,6 +12,7 @@ import ReactFlow, {
   useZoomPanHelper,
   isNode,
   isEdge,
+  getOutgoers,
 } from 'react-flow-renderer'
 
 import { getAllChildren, fixHorizontalPositions } from './util'
@@ -31,12 +32,6 @@ import MultiHandleNode from './MultiHandleNode'
 import StartingNode from './StartingNode'
 import TerminalNode from './TerminalNode'
 
-const nodeTypes = {
-  multiHandle: MultiHandleNode,
-  starting: StartingNode,
-  terminal: TerminalNode,
-}
-
 const NodesDebugger = () => {
   const nodes = useStoreState((state) => state.nodes)
   const edges = useStoreState((state) => state.edges)
@@ -51,9 +46,31 @@ const NodesDebugger = () => {
   return null
 }
 
+const nodeTypes = {
+  multiHandle: MultiHandleNode,
+  starting: StartingNode,
+  terminal: TerminalNode,
+}
+
 const FlowEditor = () => {
   const [elements, setElements] = useState(initialElements)
+
   const [rfInstance, setRfInstance] = useState(null)
+
+  useEffect(() => {
+    console.log('attacujem akcije na start')
+    setElements(
+      initialElements.map((el) => ({
+        ...el,
+        data: {
+          ...el.data,
+          onInsertBelow,
+          onBranchNode,
+        },
+      }))
+    )
+  }, [rfInstance])
+
   const [selectedElements, setSelectedElements] = useState([])
   const [propertiesWindowType, setPropertiesWindowType] = useState(null)
   const [isConnecting, setIsConnecting] = useState(false)
@@ -64,53 +81,83 @@ const FlowEditor = () => {
     (actions) => actions.updateNodeDimensions
   )
 
-  const nodeStyle = {
-    border: '1px solid #777',
-    padding: 10,
-    borderRadius: '7px',
-    background: 'LemonChiffon',
-    textAlign: 'center',
-    fontSize: '12px',
-  }
-
   const onLoad = (reactFlowInstance) => {
     console.log('flow loaded:', reactFlowInstance)
     setRfInstance(reactFlowInstance)
     reactFlowInstance.fitView()
   }
 
-  const onElementsRemove = (elementsToRemove) => {
-    const removedEdges = elementsToRemove.filter(isEdge)
-    const removedNode = elementsToRemove.find(isNode)
-    const parentNode = removedEdges.find(
-      (edge) => edge.target === removedNode.id
-    ).source
-    const outBoundEdges = removedEdges.filter(
-      (edge) => edge.source === removedNode.id
-    )
-    const newElements = removeElements(elementsToRemove, elements)
+  // const onElementsRemove = useCallback(() => {
+  //   const elementsToRemove = selectedElements
+  //   console.log('elementsToRemove', elementsToRemove)
+  //   const removedEdges = elementsToRemove.filter(isEdge)
+  //   const removedNode = elementsToRemove.find(isNode)
+  //   const parentNode = removedEdges.find(
+  //     (edge) => edge.target === removedNode.id
+  //   ).source
+  //   const outBoundEdges = removedEdges.filter(
+  //     (edge) => edge.source === removedNode.id
+  //   )
+  //   const newElements = removeElements(elementsToRemove, elements)
 
-    newElements.push(
-      ...outBoundEdges.map((edge) => {
-        return { ...edge, source: parentNode }
-      })
-    )
-    const allChildren = getAllChildren(removedNode, elements)
-    const allChildrenIds = allChildren.map((child) => child.id)
-    newElements.forEach((elem) => {
-      if (allChildrenIds.includes(elem.id)) {
-        const newLevel = elem.data.level - 1
-        elem.data.level = newLevel
-        elem.position = {
-          ...elem.position,
-          // x: (elementLeftOffset - 1) * NODE_HORIZONTAL_SPACING_HALF,
-          y: newLevel * NODE_VERTICAL_SPACING,
+  //   newElements.push(
+  //     ...outBoundEdges.map((edge) => {
+  //       return { ...edge, source: parentNode }
+  //     })
+  //   )
+  //   const allChildren = getAllChildren(removedNode, elements)
+  //   const allChildrenIds = allChildren.map((child) => child.id)
+
+  //   newElements.forEach((elem) => {
+  //     if (allChildrenIds.includes(elem.id)) {
+  //       const newLevel = elem.data.level - 1
+  //       elem.data.level = newLevel
+  //       elem.position = {
+  //         ...elem.position,
+  //         // x: (elementLeftOffset - 1) * NODE_HORIZONTAL_SPACING_HALF,
+  //         y: newLevel * NODE_VERTICAL_SPACING,
+  //       }
+  //     }
+  //   })
+
+  //   setElements(fixHorizontalPositions(newElements))
+  // }, [selectedElements, elements])
+
+  const onDelete = useCallback(
+    (nodeId) => {
+      const rfElements = rfInstance.toObject().elements
+      console.log()
+      const node = rfElements.find((el) => el.id === nodeId)
+      const nodeEdges = getConnectedEdges([node], rfElements.filter(isEdge))
+      const elementsToRemove = [node, ...nodeEdges]
+      const parentNode = nodeEdges.find((edge) => edge.target === node.id)
+        .source
+      const outBoundEdges = nodeEdges.filter((edge) => edge.source === node.id)
+      const newElements = removeElements(elementsToRemove, rfElements)
+
+      newElements.push(
+        ...outBoundEdges.map((edge) => {
+          return { ...edge, source: parentNode }
+        })
+      )
+      const allChildren = getAllChildren(node, rfElements)
+      const allChildrenIds = allChildren.map((child) => child.id)
+
+      newElements.forEach((elem) => {
+        if (allChildrenIds.includes(elem.id)) {
+          const newLevel = elem.data.level - 1
+          elem.data.level = newLevel
+          elem.position = {
+            ...elem.position,
+            y: newLevel * NODE_VERTICAL_SPACING,
+          }
         }
-      }
-    })
+      })
 
-    setElements(fixHorizontalPositions(newElements))
-  }
+      setElements(fixHorizontalPositions(newElements))
+    },
+    [selectedElements, elements, rfInstance]
+  )
 
   const onElementClick = (event, element) => {
     console.log('click', element)
@@ -298,18 +345,6 @@ const FlowEditor = () => {
     }
   }, [rfInstance])
 
-  const onRestore = useCallback(() => {
-    const restoreFlow = async () => {
-      const flow = JSON.parse(localStorage.getItem(FLOW_STORAGE_KEY))
-      if (flow) {
-        const [x = 0, y = 0] = flow.position
-        setElements(flow.elements || [])
-        transform({ x, y, zoom: flow.zoom || 0 })
-      }
-    }
-    restoreFlow()
-  }, [setElements])
-
   const onNewTerminalNode = () => {
     const nextId = getNextElementId()
     const sourceId = (parseInt(nextId) - 1).toString()
@@ -398,38 +433,65 @@ const FlowEditor = () => {
     setElements(newElements)
   }
 
-  const onBranchNode = (nodeId) => {
-    const rfElements = rfInstance.toObject().elements
-    const currentNode = rfElements.find((el) => el.id === nodeId)
-    const nextId = getNextElementId()
-    const nextLevel = currentNode.data.level + 1
+  const onBranchNode = useCallback(
+    (nodeId) => {
+      const rfElements = rfInstance.toObject().elements
+      const currentNode = rfElements.find((el) => el.id === nodeId)
+      const nextId = getNextElementId()
+      const nextLevel = currentNode.data.level + 1
 
-    const newElements = [
-      ...rfElements,
-      {
-        id: nextId,
-        type: 'multiHandle',
-        data: {
-          handles: {
-            top: [1],
-            right: [],
-            bottom: [0],
-            left: [],
-          },
-          onInsertAbove,
-          onInsertBelow,
-          onBranchNode,
-          name: '',
-          level: nextLevel,
-          isSelected: false,
+      const newNode = getDefaultNode()
+      newNode.id = nextId
+      newNode.data = { ...newNode.data, level: nextLevel }
+      newNode.position = {
+        x: NODE_HORIZONTAL_SPACING_HALF,
+        y: nextLevel * NODE_VERTICAL_SPACING,
+      }
+
+      const newElements = [
+        ...rfElements,
+        newNode,
+        {
+          id: (parseInt(nextId) + 1).toString(),
+          source: nodeId,
+          sourceHandle: 'bottom_0',
+          target: nextId,
+          targetHandle: 'top_0',
+          arrowHeadType: 'arrowclosed',
+          label: `Trans ${(parseInt(nextId) + 1).toString()}`,
         },
-        style: nodeStyle,
-        position: {
-          x: NODE_HORIZONTAL_SPACING_HALF,
-          y: nextLevel * NODE_VERTICAL_SPACING,
-        },
-      },
-      {
+      ]
+
+      setElements(fixHorizontalPositions(newElements))
+    },
+    [rfInstance]
+  )
+
+  const onInsertBelow = useCallback(
+    (nodeId) => {
+      const rfElements = rfInstance.toObject().elements
+      const currentNode = rfElements.find((el) => el.id === nodeId)
+      const connectedEdges = getConnectedEdges(
+        [currentNode],
+        rfElements.filter(isEdge)
+      )
+
+      const connectedOutgoingEdges = connectedEdges.filter(
+        (edge) => edge.source === nodeId
+      )
+
+      const nextId = getNextElementId()
+      const level = currentNode.data.level
+
+      const newNode = getDefaultNode()
+      newNode.id = nextId
+      newNode.data = { ...newNode.data, level: level + 1 }
+      newNode.position = {
+        x: currentNode.position.x,
+        y: (level + 1) * NODE_VERTICAL_SPACING,
+      }
+
+      const newEdge = {
         id: (parseInt(nextId) + 1).toString(),
         source: nodeId,
         sourceHandle: 'bottom_0',
@@ -437,196 +499,180 @@ const FlowEditor = () => {
         targetHandle: 'top_0',
         arrowHeadType: 'arrowclosed',
         label: `Trans ${(parseInt(nextId) + 1).toString()}`,
-      },
-    ]
-
-    setElements(fixHorizontalPositions(newElements))
-  }
-
-  const onInsertBelow = (nodeId) => {
-    const rfElements = rfInstance.toObject().elements
-    const currentNode = rfElements.find((el) => el.id === nodeId)
-    const connectedEdges = getConnectedEdges(
-      [currentNode],
-      rfElements.filter(isEdge)
-    )
-
-    const connectedOutgoingEdges = connectedEdges.filter(
-      (edge) => edge.source === nodeId
-    )
-
-    const nextId = getNextElementId()
-    const level = currentNode.data.level
-
-    const newNode = {
-      id: nextId,
-      type: 'multiHandle',
-      data: {
-        handles: {
-          top: [1],
-          right: [],
-          bottom: [0],
-          left: [],
-        },
-        onInsertAbove,
-        onInsertBelow,
-        onBranchNode,
-        name: '',
-        level: level + 1,
-      },
-      style: nodeStyle,
-      position: {
-        x: currentNode.position.x,
-        y: (level + 1) * NODE_VERTICAL_SPACING,
-      },
-    }
-
-    const newEdge = {
-      id: (parseInt(nextId) + 1).toString(),
-      source: nodeId,
-      sourceHandle: 'bottom_0',
-      target: nextId,
-      targetHandle: 'top_0',
-      arrowHeadType: 'arrowclosed',
-      label: `Trans ${(parseInt(nextId) + 1).toString()}`,
-    }
-
-    // Increase level by 1 for all children
-    const allChildren = getAllChildren(currentNode, rfElements)
-
-    const allChildrenUpdated = allChildren.map((child) => {
-      return {
-        ...child,
-        position: {
-          ...child.position,
-          y: child.position.y + NODE_VERTICAL_SPACING,
-        },
-        data: {
-          ...child.data,
-          level: child.data.level + 1,
-        },
       }
-    })
 
-    const updatedOutgoingEges = connectedOutgoingEdges.map((edge) => ({
-      ...edge,
-      source: nextId,
-    }))
-    const newElements = [...rfElements, newNode, newEdge]
+      // Increase level by 1 for all children
+      const allChildren = getAllChildren(currentNode, rfElements)
 
-    newElements.forEach((el, index, array) => {
-      const updatedElement =
-        allChildrenUpdated.find((elem) => el.id === elem.id) ||
-        updatedOutgoingEges.find((elem) => el.id === elem.id)
-      if (updatedElement) {
-        array[index] = updatedElement
-      }
-    })
+      const allChildrenUpdated = allChildren.map((child) => {
+        return {
+          ...child,
+          position: {
+            ...child.position,
+            y: child.position.y + NODE_VERTICAL_SPACING,
+          },
+          data: {
+            ...child.data,
+            level: child.data.level + 1,
+          },
+        }
+      })
 
-    setElements(fixHorizontalPositions(newElements))
-  }
+      const updatedOutgoingEges = connectedOutgoingEdges.map((edge) => ({
+        ...edge,
+        source: nextId,
+      }))
+      const newElements = [...rfElements, newNode, newEdge]
 
-  const onInsertAbove = (nodeId) => {
-    const rfElements = rfInstance.toObject().elements
-    const currentNode = rfElements.find((el) => el.id === nodeId)
-    const connectedEdges = getConnectedEdges(
-      [currentNode],
-      rfElements.filter(isEdge)
-    )
+      newElements.forEach((el, index, array) => {
+        const updatedElement =
+          allChildrenUpdated.find((elem) => el.id === elem.id) ||
+          updatedOutgoingEges.find((elem) => el.id === elem.id)
+        if (updatedElement) {
+          array[index] = updatedElement
+        }
+      })
 
-    const connectedIncomingEdges = connectedEdges.filter(
-      (edge) => edge.target === nodeId
-    )
+      setElements(fixHorizontalPositions(newElements))
+    },
+    [rfInstance]
+  )
 
-    const nextId = getNextElementId()
-    const level = currentNode.data.level
+  const onInsertAbove = useCallback(
+    (nodeId) => {
+      const rfElements = rfInstance.toObject().elements
+      const currentNode = rfElements.find((el) => el.id === nodeId)
+      const connectedEdges = getConnectedEdges(
+        [currentNode],
+        rfElements.filter(isEdge)
+      )
 
-    const newNode = {
-      id: nextId,
-      type: 'multiHandle',
-      data: {
-        handles: {
-          top: [1],
-          right: [],
-          bottom: [0],
-          left: [],
-        },
-        onInsertAbove,
-        onInsertBelow,
-        onBranchNode,
-        name: '',
-        level: level,
-      },
-      style: nodeStyle,
-      position: {
+      const connectedIncomingEdges = connectedEdges.filter(
+        (edge) => edge.target === nodeId
+      )
+
+      const nextId = getNextElementId()
+      const level = currentNode.data.level
+
+      const newNode = getDefaultNode()
+      newNode.id = nextId
+      newNode.data = { ...newNode.data, level }
+      newNode.position = {
         x: currentNode.position.x,
         y: level * NODE_VERTICAL_SPACING,
+      }
+
+      const newEdge = {
+        id: (parseInt(nextId) + 1).toString(),
+        source: nextId,
+        sourceHandle: 'bottom_0',
+        target: nodeId,
+        targetHandle: 'top_0',
+        arrowHeadType: 'arrowclosed',
+        label: `Trans ${nextId}`,
+      }
+
+      // Increase level by 1 for the current node and all its children
+      const allChildren = getAllChildren(currentNode, rfElements)
+      const updatedNodes = [...allChildren, currentNode].map((child) => {
+        return {
+          ...child,
+          position: {
+            ...child.position,
+            y: child.position.y + NODE_VERTICAL_SPACING,
+          },
+          data: {
+            ...child.data,
+            level: child.data.level + 1,
+          },
+        }
+      })
+
+      const updatedIncomingEdges = connectedIncomingEdges.map((edge) => ({
+        ...edge,
+        target: nextId,
+      }))
+
+      const newElements = [...rfElements, newNode, newEdge]
+
+      newElements.forEach((el, index, array) => {
+        const updatedElement =
+          updatedNodes.find((elem) => el.id === elem.id) ||
+          updatedIncomingEdges.find((elem) => el.id === elem.id)
+        if (updatedElement) {
+          array[index] = updatedElement
+        }
+      })
+
+      let index = null
+      newElements.find((elem, i) => {
+        index = i
+        return elem.id === nodeId
+      })
+      const currentNodeIndex = index
+      newElements.find((elem, i) => {
+        index = i
+        return elem.id === nextId
+      })
+      const newNodeIndex = index
+
+      // Swap current node and new node in elements array so they preserve order in which they are displayed
+      newElements[currentNodeIndex] = newElements.splice(
+        newNodeIndex,
+        1,
+        newElements[currentNodeIndex]
+      )[0]
+
+      setElements(fixHorizontalPositions(newElements))
+    },
+    [rfInstance]
+  )
+
+  const getDefaultNode = () => ({
+    type: 'multiHandle',
+    data: {
+      handles: {
+        top: [1],
+        right: [],
+        bottom: [0],
+        left: [],
       },
-    }
+      name: '',
+      onInsertAbove,
+      onInsertBelow,
+      onBranchNode,
+      onDelete,
+      isSelected: false,
+    },
+    style: {
+      border: '1px solid #777',
+      padding: 10,
+      borderRadius: '7px',
+      background: 'LemonChiffon',
+      textAlign: 'center',
+      fontSize: '12px',
+    },
+  })
 
-    const newEdge = {
-      id: (parseInt(nextId) + 1).toString(),
-      source: nextId,
-      sourceHandle: 'bottom_0',
-      target: nodeId,
-      targetHandle: 'top_0',
-      arrowHeadType: 'arrowclosed',
-      label: `Trans ${nextId}`,
-    }
-
-    // Increase level by 1 for the current node and all its children
-    const allChildren = getAllChildren(currentNode, rfElements)
-    const updatedNodes = [...allChildren, currentNode].map((child) => {
-      return {
-        ...child,
-        position: {
-          ...child.position,
-          y: child.position.y + NODE_VERTICAL_SPACING,
-        },
-        data: {
-          ...child.data,
-          level: child.data.level + 1,
-        },
+  const onRestore = useCallback(() => {
+    const restoreFlow = async () => {
+      const flow = JSON.parse(localStorage.getItem(FLOW_STORAGE_KEY))
+      flow.elements.forEach((el) => {
+        if (isNode(el)) {
+          el.data.onInsertAbove = onInsertAbove
+          el.data.onInsertBelow = onInsertBelow
+          el.data.onBranchNode = onBranchNode
+          el.data.onDelete = onDelete
+        }
+      })
+      if (flow) {
+        const [x = 0, y = 0] = flow.position
+        setElements(flow.elements || [])
+        transform({ x, y, zoom: flow.zoom || 0 })
       }
-    })
-
-    const updatedIncomingEdges = connectedIncomingEdges.map((edge) => ({
-      ...edge,
-      target: nextId,
-    }))
-
-    const newElements = [...rfElements, newNode, newEdge]
-
-    newElements.forEach((el, index, array) => {
-      const updatedElement =
-        updatedNodes.find((elem) => el.id === elem.id) ||
-        updatedIncomingEdges.find((elem) => el.id === elem.id)
-      if (updatedElement) {
-        array[index] = updatedElement
-      }
-    })
-
-    let index = null
-    newElements.find((elem, i) => {
-      index = i
-      return elem.id === nodeId
-    })
-    const currentNodeIndex = index
-    newElements.find((elem, i) => {
-      index = i
-      return elem.id === nextId
-    })
-    const newNodeIndex = index
-
-    // Swap current node and new node in elements array so they preserve order in which they are displayed
-    newElements[currentNodeIndex] = newElements.splice(
-      newNodeIndex,
-      1,
-      newElements[currentNodeIndex]
-    )[0]
-
-    setElements(fixHorizontalPositions(newElements))
-  }
+    }
+    restoreFlow()
+  }, [setElements, rfInstance])
   return (
     <div style={{ minWidth: '100%', display: 'flex', height: '100%' }}>
       {/** Toolbox window  */}
@@ -680,7 +726,7 @@ const FlowEditor = () => {
         elements={elements}
         nodeTypes={nodeTypes}
         nodesDraggable={false}
-        onElementsRemove={onElementsRemove}
+        // onElementsRemove={onElementsRemove}
         onSelectionChange={onSelectionChange}
         // onConnect={onConnect}
         onLoad={onLoad}

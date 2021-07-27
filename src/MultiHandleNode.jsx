@@ -5,6 +5,7 @@ import { Handle } from 'react-flow-renderer'
 import UpIcon from './icons/UpIcon'
 import DownIcon from './icons/DownIcon'
 import SplitIcon from './icons/SplitIcon'
+import DeleteIcon from './icons/DeleteIcon'
 
 export default memo(({ data, id }) => {
   const handleSize = '0px'
@@ -52,11 +53,6 @@ export default memo(({ data, id }) => {
     100
   )
 
-  // const test = () => {
-  //   console.log('TEST!!!')
-  //   data.onInsertAbove()
-  // }
-
   return (
     <div
       style={{
@@ -78,6 +74,9 @@ export default memo(({ data, id }) => {
           </div>
           <div onClick={() => data.onBranchNode(id)} v>
             <SplitIcon />
+          </div>
+          <div onClick={() => data.onDelete(id)}>
+            <DeleteIcon />
           </div>
         </>
       ) : null}

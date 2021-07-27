@@ -2,6 +2,9 @@ import React, { memo } from 'react'
 
 import { Handle } from 'react-flow-renderer'
 
+import DownIcon from './icons/DownIcon'
+import SplitIcon from './icons/SplitIcon'
+
 export default memo(({ data }) => {
   const handleSize = '0px'
   const bottomHandles = data.handles.bottom.map((isTargetHandle, i) => {
@@ -39,6 +42,16 @@ export default memo(({ data }) => {
       <div>
         <strong>{data.name}</strong>
       </div>
+      {data.isSelected ? (
+        <>
+          <div onClick={() => data.onInsertBelow('1')}>
+            <DownIcon />
+          </div>
+          <div onClick={() => data.onBranchNode('1')} v>
+            <SplitIcon />
+          </div>
+        </>
+      ) : null}
     </div>
   )
 })

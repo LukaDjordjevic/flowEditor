@@ -1,14 +1,22 @@
-import React from 'react'
+import React, { useRef, useEffect } from 'react'
 
 const EdgeProperties = ({ edge, onChangeTitle }) => {
   const onChange = (e) => {
     onChangeTitle(edge, e.target.value)
   }
+
+  const nameInput = useRef(null)
+
+  // useEffect(() => {
+  //   nameInput.current.focus()
+  // }, [])
+
   return (
     <div className="flow-editor-properties">
       <div className="flow-editor-properties-title">Transition properties</div>
       <label className="flow-editor-properties-label">Name</label>
       <input
+        ref={nameInput}
         className="flow-editor-properties-input"
         defaultValue={edge && edge.label}
         onChange={onChange}
