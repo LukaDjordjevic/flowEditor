@@ -58,7 +58,6 @@ const FlowEditor = () => {
   const [rfInstance, setRfInstance] = useState(null)
 
   useEffect(() => {
-    console.log('attacujem akcije na start')
     setElements(
       initialElements.map((el) => ({
         ...el,
@@ -72,10 +71,11 @@ const FlowEditor = () => {
   }, [rfInstance])
 
   const [selectedElements, setSelectedElements] = useState([])
+  const [keyboardShortcutsEnabled, setKeyboardShortcutsEnabled] = useState(true)
   const [propertiesWindowType, setPropertiesWindowType] = useState(null)
   const [isConnecting, setIsConnecting] = useState(false)
   const [connectingNodeIds, setConnectingNodeIds] = useState([])
-  const [lastNodeClicked, setLastNodeClicked] = useState(null)
+  const [lastElementClicked, setlastElementClicked] = useState(null)
 
   const updateNodeDimensions = useStoreActions(
     (actions) => actions.updateNodeDimensions
@@ -126,8 +126,9 @@ const FlowEditor = () => {
   const onDelete = useCallback(
     (nodeId) => {
       const rfElements = rfInstance.toObject().elements
-      console.log()
+
       const node = rfElements.find((el) => el.id === nodeId)
+      if (isEdge(node)) return
       const nodeEdges = getConnectedEdges([node], rfElements.filter(isEdge))
       const elementsToRemove = [node, ...nodeEdges]
       const parentNode = nodeEdges.find((edge) => edge.target === node.id)
@@ -145,10 +146,12 @@ const FlowEditor = () => {
       const newElements = removeElements(elementsToRemove, rfElements)
 
       newElements.push(
-        ...outBoundEdges.map((edge) => {
-          return { ...edge, source: parentNode }
-        })
+        ...outBoundEdges.map((edge) => ({
+          ...edge,
+          source: parentNode,
+        }))
       )
+
       const allChildren = getAllChildren(node, rfElements)
       const allChildrenIds = allChildren.map((child) => child.id)
 
@@ -190,7 +193,8 @@ const FlowEditor = () => {
 
   const onElementClick = (event, element) => {
     console.log('click', element)
-    setLastNodeClicked(element)
+    setlastElementClicked(element)
+    setKeyboardShortcutsEnabled(true)
     if (isConnecting) {
       setConnectingNodeIds([...connectingNodeIds, element.id])
     }
@@ -680,18 +684,21 @@ const FlowEditor = () => {
   useEffect(() => {
     window.addEventListener('keyup', onKeyUp)
     return () => {
-      console.log('unmounting')
       window.removeEventListener('keyup', onKeyUp)
     }
-  }, [lastNodeClicked])
+  }, [lastElementClicked, keyboardShortcutsEnabled, selectedElements])
 
   const onKeyUp = useCallback(
     (e) => {
-      console.log(e.keyCode)
-      if (lastNodeClicked) {
-        const { id } = lastNodeClicked
+      if (
+        lastElementClicked &&
+        keyboardShortcutsEnabled &&
+        selectedElements &&
+        selectedElements.length === 1
+      ) {
+        const { id } = lastElementClicked
         switch (e.keyCode) {
-          case 8: // del
+          case 8: // backspace
             if (id !== '1') onDelete(id)
             break
           case 65: // a
@@ -706,7 +713,7 @@ const FlowEditor = () => {
         }
       }
     },
-    [lastNodeClicked]
+    [lastElementClicked, keyboardShortcutsEnabled, selectedElements]
   )
 
   const onSave = useCallback(() => {
@@ -736,6 +743,14 @@ const FlowEditor = () => {
     restoreFlow()
   }, [setElements, rfInstance])
 
+  const onFocusInput = useCallback(() => {
+    setKeyboardShortcutsEnabled(false)
+  }, [setKeyboardShortcutsEnabled])
+
+  const onFocusEditor = useCallback(() => {
+    setKeyboardShortcutsEnabled(true)
+  }, [setKeyboardShortcutsEnabled])
+
   //  Render
   return (
     <div style={{ minWidth: '100%', display: 'flex', height: '100%' }}>
@@ -746,25 +761,27 @@ const FlowEditor = () => {
             <NodeProperties
               node={selectedElements[0]}
               onChangeTitle={onChangeElementTitle}
+              onFocus={onFocusInput}
             />
           )}
           {selectedElements && propertiesWindowType === 'edge' && (
             <EdgeProperties
               edge={elements.find((el) => el.id === selectedElements[0].id)}
               onChangeTitle={onChangeElementTitle}
+              onFocus={onFocusInput}
             />
           )}
         </div>
         <div className="flow-editor-buttons">
           <button
             className="flow-editor-button"
-            onClick={() => onInsertAbove(lastNodeClicked.id)}
+            onClick={() => onInsertAbove(lastElementClicked.id)}
           >
             Insert above
           </button>
           <button
             className="flow-editor-button"
-            onClick={() => onInsertBelow(lastNodeClicked.id)}
+            onClick={() => onInsertBelow(lastElementClicked.id)}
           >
             Insert below
           </button>
@@ -790,6 +807,7 @@ const FlowEditor = () => {
         elements={elements}
         nodeTypes={nodeTypes}
         nodesDraggable={false}
+        onPaneClick={onFocusEditor}
         // onElementsRemove={onElementsRemove}
         onSelectionChange={onSelectionChange}
         // onConnect={onConnect}
@@ -797,7 +815,7 @@ const FlowEditor = () => {
         onElementClick={onElementClick}
         snapToGrid={true}
         snapGrid={[10, 10]}
-        onNodeDoubleClick={() => onInsertBelow(lastNodeClicked.id)}
+        onNodeDoubleClick={() => onInsertBelow(lastElementClicked.id)}
       >
         <MiniMap
           nodeStrokeColor={(n) => {

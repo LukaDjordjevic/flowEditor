@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react'
 
-const NodeProperties = ({ node, onChangeTitle }) => {
+const NodeProperties = ({ node, onChangeTitle, onFocus }) => {
   const onChange = (e) => {
     onChangeTitle(node, e.target.value)
   }
@@ -20,6 +20,7 @@ const NodeProperties = ({ node, onChangeTitle }) => {
         className="flow-editor-properties-input"
         defaultValue={node.data && node.data.name}
         onChange={onChange}
+        onFocus={onFocus}
       />
     </div>
   )

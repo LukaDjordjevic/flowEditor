@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react'
 
-const EdgeProperties = ({ edge, onChangeTitle }) => {
+const EdgeProperties = ({ edge, onChangeTitle, onFocus }) => {
   const onChange = (e) => {
     onChangeTitle(edge, e.target.value)
   }
@@ -20,6 +20,7 @@ const EdgeProperties = ({ edge, onChangeTitle }) => {
         className="flow-editor-properties-input"
         defaultValue={edge && edge.label}
         onChange={onChange}
+        onFocus={onFocus}
       />
       <div className="flow-editor-vertical-spacer" />
       <label className="flow-editor-properties-label">Action 1</label>
